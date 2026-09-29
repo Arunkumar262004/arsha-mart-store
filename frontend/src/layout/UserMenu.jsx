@@ -2,15 +2,8 @@ import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, KeyRound, LogOut } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
+import Avatar from '../components/Avatar'
 import useClickOutside from './useClickOutside'
-
-const initials = (name = '') =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
-    .join('')
 
 export default function UserMenu() {
   const { user, logout } = useAuth()
@@ -27,9 +20,7 @@ export default function UserMenu() {
         aria-expanded={open}
         aria-label="Account menu"
       >
-        <span className="grid h-8 w-8 place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700">
-          {initials(user?.name)}
-        </span>
+        <Avatar user={user} />
         <span className="hidden text-left sm:block">
           <span className="block text-sm font-medium leading-tight text-slate-800">{user?.name}</span>
           <span className="block text-xs leading-tight text-slate-500">{user?.role?.name}</span>

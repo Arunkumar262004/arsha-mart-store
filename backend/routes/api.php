@@ -26,6 +26,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::put('/me/password', [ProfileController::class, 'updatePassword']);
+    Route::post('/me/avatar', [ProfileController::class, 'updateAvatar']);
+    Route::delete('/me/avatar', [ProfileController::class, 'deleteAvatar']);
     Route::get('/notifications', [NotificationController::class, 'index']);
 
     Route::get('/dashboard', DashboardController::class)->middleware('can:dashboard.view');

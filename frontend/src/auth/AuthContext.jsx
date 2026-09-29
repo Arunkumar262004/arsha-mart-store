@@ -46,15 +46,19 @@ export function AuthProvider({ children }) {
     signOutLocally()
   }, [signOutLocally])
 
+  /** Replace the signed-in user's details, e.g. after uploading a photo. */
+  const updateUser = useCallback((user) => setState((s) => ({ ...s, user })), [])
+
   const value = useMemo(
     () => ({
       ...state,
       login,
       logout,
+      updateUser,
       can: (permission) => state.permissions.includes(permission),
       isAdmin: state.permissions.includes('settings.manage'),
     }),
-    [state, login, logout],
+    [state, login, logout, updateUser],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

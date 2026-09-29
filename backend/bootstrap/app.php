@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'active' => EnsureUserIsActive::class,
         ]);
+
+        // Render (and similar hosts) end HTTPS at their proxy and forward plain
+        // HTTP. Trusting it makes Laravel see the real https URL, which signed
+        // links (report QR codes) and generated URLs depend on.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // A sold-out product is an expected outcome, not an application error.

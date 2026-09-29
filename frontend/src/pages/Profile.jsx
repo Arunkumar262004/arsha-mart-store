@@ -1,8 +1,9 @@
-import { useState } from 'react'
-import { KeyRound } from 'lucide-react'
-import { changePassword } from '../api'
+import { useRef, useState } from 'react'
+import { Camera, KeyRound, Trash2 } from 'lucide-react'
+import { changePassword, removeAvatar, uploadAvatar } from '../api'
 import { parseApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import Avatar from '../components/Avatar'
 import { useToast } from '../components/Toast'
 import { Alert, Badge, Button, Card, Field, PageHeader, inputClass } from '../components/ui'
 
@@ -35,7 +36,8 @@ export default function Profile() {
 
   return (
     <>
-      <PageHeader title="My profile" description="Your account details and password." />
+      <PageHeader title="My profile" description="Your photo, account details and password." />
+      <PhotoCard />
       <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
         <Card title="Account">
           <dl className="space-y-3 text-sm">
@@ -83,5 +85,80 @@ export default function Profile() {
         </Card>
       </div>
     </>
+  )
+}
+
+const MAX_BYTES = 5 * 1024 * 1024
+
+/** Upload / change / remove the profile photo; the header updates straight away. */
+function PhotoCard() {
+  const { user, updateUser } = useAuth()
+  const toast = useToast()
+  const input = useRef(null)
+  const [busy, setBusy] = useState(null) // 'upload' | 'remove'
+
+  async function run(kind, request, message) {
+    setBusy(kind)
+    try {
+      updateUser(await request())
+      toast(message)
+    } catch (e) {
+      const { message: error, errors } = parseApiError(e)
+      toast(errors?.avatar?.[0] ?? error, 'error')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  function pick(event) {
+    const file = event.target.files?.[0]
+    event.target.value = '' // allow choosing the same file again
+    if (!file) return
+    if (!file.type.startsWith('image/')) return toast('Choose an image (JPG, PNG or WebP).', 'error')
+    if (file.size > MAX_BYTES) return toast('The photo must be 5 MB or smaller.', 'error')
+    run('upload', () => uploadAvatar(file), 'Profile photo updated.')
+  }
+
+  return (
+    <Card className="mb-6">
+      <div className="flex flex-col items-center gap-5 sm:flex-row">
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          className="group relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2"
+          aria-label="Change profile photo"
+        >
+          <Avatar user={user} size="lg" className="ring-4 ring-slate-100" />
+          <span className="absolute inset-0 grid place-items-center rounded-full bg-slate-900/45 text-white opacity-0 transition group-hover:opacity-100">
+            <Camera size={22} aria-hidden />
+          </span>
+        </button>
+
+        <div className="text-center sm:text-left">
+          <p className="text-base font-semibold text-slate-900">{user.name}</p>
+          <p className="text-sm text-slate-500">{user.email}</p>
+          <p className="mt-1 text-xs text-slate-400">JPG, PNG or WebP, up to 5 MB. It's cropped to a square and shown in the header.</p>
+          <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+            <Button size="sm" icon={Camera} loading={busy === 'upload'} disabled={busy !== null} onClick={() => input.current?.click()}>
+              {user.avatar ? 'Change photo' : 'Upload photo'}
+            </Button>
+            {user.avatar && (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={Trash2}
+                loading={busy === 'remove'}
+                disabled={busy !== null}
+                onClick={() => run('remove', removeAvatar, 'Profile photo removed.')}
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={pick} />
+      </div>
+    </Card>
   )
 }

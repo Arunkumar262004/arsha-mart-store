@@ -7,6 +7,14 @@ export const login = (email, password) => client.post('/login', { email, passwor
 export const logout = () => client.post('/logout')
 export const getMe = () => client.get('/me').then((r) => r.data)
 export const changePassword = (payload) => client.put('/me/password', payload).then((r) => r.data)
+/** Upload a profile photo; resolves with the updated user. */
+export const uploadAvatar = (file) => {
+  const form = new FormData()
+  form.append('avatar', file)
+  // The client defaults to JSON; multipart lets the browser add the boundary.
+  return client.post('/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(data)
+}
+export const removeAvatar = () => client.delete('/me/avatar').then(data)
 
 // Dashboard & notifications
 export const getDashboard = () => client.get('/dashboard').then((r) => r.data)

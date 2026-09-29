@@ -235,6 +235,20 @@ class ReportsTest extends TestCase
         $this->get('http://192.168.1.20:8000'.$path)->assertForbidden();
     }
 
+    public function testQrLinkWorksBehindAnHttpsProxyLikeRender(): void
+    {
+        config(['inventory.report_link_url' => 'https://arsha-api.onrender.com']);
+        $url = $this->getJson('/api/reports/orders/share-link?format=pdf')->assertOk()->json('url');
+        $this->assertStringStartsWith('https://arsha-api.onrender.com/', $url);
+
+        // Render forwards the request as plain http and says https in a header.
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders(['X-Forwarded-Proto' => 'https', 'X-Forwarded-Port' => '443'])
+            ->get(str_replace('https://', 'http://', $url))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+    }
+
     public function testQrLinkStopsWorkingWhenItsCreatorLosesAccess(): void
     {
         $url = $this->getJson('/api/reports/stock/share-link?format=xlsx')->assertOk()->json('url');

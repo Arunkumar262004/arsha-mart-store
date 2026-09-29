@@ -136,12 +136,16 @@ class ReportController extends Controller
             ...$request->safe()->only(['period', 'from', 'to', 'employee_id', 'search', 'type']),
         ], fn ($value) => $value !== null && $value !== '');
 
-        // Phones can't reach "localhost"; REPORT_LINK_URL names an address they can.
-        URL::forceRootUrl(config('inventory.report_link_url'));
+        // Phones can't reach "localhost"; REPORT_LINK_URL names an address they
+        // can. Its scheme is used too, or an https address would come out as http.
+        $root = rtrim(config('inventory.report_link_url'), '/');
+        URL::forceRootUrl($root);
+        URL::forceScheme(parse_url($root, PHP_URL_SCHEME) ?: 'http');
         try {
             $url = URL::temporarySignedRoute('reports.shared', $expires, $params);
         } finally {
             URL::forceRootUrl(null);
+            URL::forceScheme(null);
         }
 
         return response()->json(['url' => $url, 'expires_at' => $expires->toIso8601String()]);

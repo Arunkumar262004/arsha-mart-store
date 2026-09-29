@@ -1,0 +1,101 @@
+# Render Blueprint for the Laravel API (Dashboard → New → Blueprint → pick this repo).
+# The React app is deployed separately (Vercel). Values marked `sync: false` are
+# secrets: Render asks for them when the Blueprint is created; they never live in git.
+services:
+  - type: web
+    name: arsha-mart-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore # next to the Neon database (ap-southeast-1)
+    healthCheckPath: /up
+    autoDeploy: true
+    envVars:
+      # App
+      - key: APP_NAME
+        value: Arsha Mart
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY # copy APP_KEY from backend/.env, or run `php artisan key:generate --show`
+        sync: false
+      - key: APP_URL # this service's address, e.g. https://arsha-mart-api.onrender.com
+        sync: false
+      - key: APP_TIMEZONE
+        value: Asia/Kolkata
+      - key: LOG_CHANNEL
+        value: stderr # shows up in Render's Logs tab
+      - key: LOG_LEVEL
+        value: info
+
+      # Frontend allowed by CORS (comma-separated), e.g. https://your-app.vercel.app
+      - key: FRONTEND_URL
+        sync: false
+
+      # Neon PostgreSQL: use the *direct* host (no "-pooler"), migrations fail through the pooler
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+
+      - key: SESSION_DRIVER
+        value: database
+      - key: QUEUE_CONNECTION
+        value: database
+      - key: CACHE_STORE
+        value: database
+
+      # Mail (Brevo SMTP). Render's free plan blocks port 587, so use 2525.
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: MAIL_PORT
+        value: "2525"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: RESEND_API_KEY # only needed if MAIL_MAILER=resend
+        sync: false
+
+      # WhatsApp confirmations (wasender.dev)
+      - key: WASENDER_API_TOKEN
+        sync: false
+      - key: WASENDER_API_URL
+        value: https://api.wasender.dev/messages/text
+      - key: WASENDER_DOCUMENT_URL
+        value: https://api.wasender.dev/messages/document
+      - key: DEFAULT_COUNTRY_CODE
+        value: "91"
+
+      # Store details printed on bills
+      - key: STORE_STATE
+        value: Tamil Nadu
+      - key: STORE_ADDRESS
+        sync: false
+      - key: STORE_PHONE
+        sync: false
+      - key: STORE_GSTIN
+        sync: false
+      - key: LOW_STOCK_THRESHOLD
+        value: "10"
+
+      # Report QR codes: links use APP_URL when this is empty
+      - key: REPORT_LINK_MINUTES
+        value: "30"

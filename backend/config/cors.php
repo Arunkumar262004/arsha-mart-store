@@ -21,7 +21,7 @@ return [
 
     'allowed_origins' => array_filter(array_map(
         'trim',
-        explode(',', env('FRONTEND_URL', 'http://localhost:5173', 'https://order-inventory-system-mallow.vercel.app')),
+        explode(',', env('FRONTEND_URL', 'http://localhost:5173', 'https://arsha-mart-store.vercel.app')),
     )),
 
     'allowed_origins_patterns' => [],

@@ -1,0 +1,1001 @@
+{
+  "info": {
+    "name": "billing-system-task-mallow-postman-collection",
+    "description": "Store Billing (Order & Inventory Mini-System) API: every endpoint in backend/routes/api.php, grouped to match the app's screens.\n\nSetup:\n1. Set the `base_url` collection variable if your backend isn't at http://localhost:8000/api (e.g. https://<service>.onrender.com/api).\n2. Run \"Auth → Login\" once. Its test script saves the returned token into the `token` collection variable. Every other request inherits Bearer {{token}} auth from the collection.\n3. Seeded accounts (password: password123): admin@store.com (Admin, everything incl. Settings), manager@store.com (Store Manager), cashier@store.com (Cashier: dashboard, billing, order history). Requests outside a role's permissions return 403.\n4. \"Create product\", \"Create bill\", \"Create role\" and \"Create user\" save the new id into a collection variable (product_id, order_id, role_id, user_id), so the requests after them work without editing.\n5. Login is rate limited to 5 attempts per minute per email + IP.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "customer_email",
+      "value": "arun@example.com",
+      "type": "string"
+    },
+    {
+      "key": "role_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "3",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Returns a Sanctum token (valid for 12 hours) plus the user profile and permissions. Saves the token into the {{token}} collection variable for every other request.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@store.com\",\n  \"password\": \"password123\",\n  \"device_name\": \"postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('token', data.token);",
+                  "    pm.test('token saved', () => pm.expect(data.token).to.exist);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "me"
+              ]
+            },
+            "description": "The signed-in user with role and permission keys."
+          }
+        },
+        {
+          "name": "Change my password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/me/password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "me",
+                "password"
+              ]
+            },
+            "description": "Min 8 characters with letters and numbers; must differ from the current password.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"current_password\": \"password123\",\n  \"password\": \"newpass123\",\n  \"password_confirmation\": \"newpass123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "logout"
+              ]
+            },
+            "description": "Revokes the current token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Dashboard summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/dashboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "dashboard"
+              ]
+            },
+            "description": "Sales and order counts for today and this month, the last 7 days of sales, recent orders and stock figures. Needs dashboard.view."
+          }
+        },
+        {
+          "name": "Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/notifications",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "notifications"
+              ]
+            },
+            "description": "Bell items: low and out-of-stock products (only for users with products.view)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "item": [
+        {
+          "name": "Customer lookup by mobile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customers/lookup?phone=%2B919578777764",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customers",
+                "lookup"
+              ],
+              "query": [
+                {
+                  "key": "phone",
+                  "value": "%2B919578777764",
+                  "description": "E.164 (URL-encoded + as %2B) mobile number. Send this or email."
+                }
+              ]
+            },
+            "description": "Finds an existing customer so the bill form can auto-fill. 404 if not found. Needs billing.create."
+          }
+        },
+        {
+          "name": "Customer lookup by email",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customers/lookup?email={{customer_email}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customers",
+                "lookup"
+              ],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "{{customer_email}}",
+                  "description": "Customer email. Send this or phone."
+                }
+              ]
+            },
+            "description": "Same lookup, by email."
+          }
+        },
+        {
+          "name": "Create bill (order)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "description": "Places an order: checks and deducts stock atomically (row locks), computes GST, and queues the email and WhatsApp confirmations, each carrying the PDF bill.\n\n- customer_name is required only for a new customer.\n- amount_paid is optional; the response includes change_due.\n- interstate: false (default) charges CGST + SGST at half the rate each; true (customer outside Tamil Nadu) charges IGST at the full rate.\n- To update an existing customer's details while billing, also send customer_id and update_customer: true.\n- 422 with an insufficient-stock error if any line exceeds stock. Needs billing.create.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_email\": \"{{customer_email}}\",\n  \"customer_name\": \"Arun Kumar\",\n  \"customer_phone\": \"+919578777764\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"quantity\": 2\n    },\n    {\n      \"product_id\": 2,\n      \"quantity\": 1\n    }\n  ],\n  \"amount_paid\": 500,\n  \"interstate\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('order_id', data.id);",
+                  "    pm.test('order_id saved', () => pm.expect(data.id).to.exist);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Order History",
+      "item": [
+        {
+          "name": "Order details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "One order with customer, cashier and line items. Needs orders.view."
+          }
+        },
+        {
+          "name": "Customer's orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customers/{{customer_email}}/orders?per_page=15&page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customers",
+                "{{customer_email}}",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Page size, 1-100."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number."
+                }
+              ]
+            },
+            "description": "Paginated order history for one customer email, newest first. Needs orders.view."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "List products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "All products with price, GST % and stock. Needs products.view or billing.create."
+          }
+        },
+        {
+          "name": "Low-stock products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/low-stock?threshold=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "low-stock"
+              ],
+              "query": [
+                {
+                  "key": "threshold",
+                  "value": "10",
+                  "description": "Optional. Defaults to the configured low-stock threshold."
+                }
+              ]
+            },
+            "description": "Products with stock below the threshold. Needs products.view."
+          }
+        },
+        {
+          "name": "Create product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "description": "code must be unique: uppercase letters, digits, - or _. Opening stock is recorded in the stock log. Needs products.manage.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aavin Milk 500ml\",\n  \"code\": \"AAVIN-MILK-500\",\n  \"price\": 27.5,\n  \"tax_percent\": 5,\n  \"stock\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('product_id', data.id);",
+                  "    pm.test('product_id saved', () => pm.expect(data.id).to.exist);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}"
+              ]
+            },
+            "description": "Stock cannot be changed here (use Restock / Stock correction). Needs products.manage.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Aavin Milk 500ml\",\n  \"code\": \"AAVIN-MILK-500\",\n  \"price\": 28,\n  \"tax_percent\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Restock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/stock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "stock"
+              ]
+            },
+            "description": "Adds stock. quantity must be positive. Needs stock.adjust.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"restock\",\n  \"quantity\": 25,\n  \"note\": \"Supplier delivery\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Stock correction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/stock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "stock"
+              ]
+            },
+            "description": "Positive or negative adjustment; a note is required. Stock can never go below zero. Needs stock.adjust.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"correction\",\n  \"quantity\": -2,\n  \"note\": \"Damaged packets\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Stock movements",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/{{product_id}}/movements?page=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                "{{product_id}}",
+                "movements"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (20 per page)."
+                }
+              ]
+            },
+            "description": "Stock log for one product: initial, sales, restocks and corrections, newest first. Needs products.view."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings / Roles",
+      "item": [
+        {
+          "name": "List permissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/permissions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "permissions"
+              ]
+            },
+            "description": "Every permission key, grouped, for building a role. Admin only (settings.manage)."
+          }
+        },
+        {
+          "name": "List roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            },
+            "description": "Admin only."
+          }
+        },
+        {
+          "name": "Create role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            },
+            "description": "permissions must be keys from List permissions: dashboard.view, billing.create, orders.view, products.view, products.manage, stock.adjust. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Stock Keeper\",\n  \"description\": \"Maintains inventory\",\n  \"permissions\": [\n    \"products.view\",\n    \"products.manage\",\n    \"stock.adjust\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('role_id', data.id);",
+                  "    pm.test('role_id saved', () => pm.expect(data.id).to.exist);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update role",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}"
+              ]
+            },
+            "description": "The Admin role itself cannot be edited. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Stock Keeper\",\n  \"description\": \"Maintains inventory and views the dashboard\",\n  \"permissions\": [\n    \"dashboard.view\",\n    \"products.view\",\n    \"products.manage\",\n    \"stock.adjust\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete role",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/roles/{{role_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "roles",
+                "{{role_id}}"
+              ]
+            },
+            "description": "The Admin role cannot be deleted, and a role with users assigned must be emptied first (422). Admin only."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Settings / Users",
+      "item": [
+        {
+          "name": "List users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "Admin only."
+          }
+        },
+        {
+          "name": "Create user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            },
+            "description": "role_id from List roles. Password: min 8 characters with letters and numbers. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Divya Natarajan\",\n  \"email\": \"divya@store.com\",\n  \"password\": \"welcome123\",\n  \"password_confirmation\": \"welcome123\",\n  \"role_id\": 3,\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const data = pm.response.json();",
+                  "    pm.collectionVariables.set('user_id', data.id);",
+                  "    pm.test('user_id saved', () => pm.expect(data.id).to.exist);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update user",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Setting is_active to false blocks sign-in and signs the user out everywhere. You cannot deactivate yourself or change your own role. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Divya Natarajan\",\n  \"email\": \"divya@store.com\",\n  \"role_id\": 3,\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Reset user password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}/password",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "{{user_id}}",
+                "password"
+              ]
+            },
+            "description": "Sets a new password and signs the user out of every device. Admin only.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"reset1234\",\n  \"password_confirmation\": \"reset1234\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete user",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/{{user_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "users",
+                "{{user_id}}"
+              ]
+            },
+            "description": "Admins cannot delete themselves. Admin only."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -22,8 +22,10 @@ return [
     // FRONTEND_URL is a comma-separated list, e.g.
     // "https://arsha-mart-store.vercel.app,http://localhost:5173".
     // (env() takes one default, so the defaults are one comma-separated string.)
+    // A trailing "/" is dropped: browsers send the origin without one, so
+    // "https://site.app/" would never match.
     'allowed_origins' => array_values(array_filter(array_map(
-        'trim',
+        fn (string $origin) => rtrim(trim($origin), '/'),
         explode(',', env('FRONTEND_URL') ?: 'http://localhost:5173,https://arsha-mart-store.vercel.app'),
     ))),
 

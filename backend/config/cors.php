@@ -19,10 +19,13 @@ return [
 
     'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => array_filter(array_map(
+    // FRONTEND_URL is a comma-separated list, e.g.
+    // "https://arsha-mart-store.vercel.app,http://localhost:5173".
+    // (env() takes one default, so the defaults are one comma-separated string.)
+    'allowed_origins' => array_values(array_filter(array_map(
         'trim',
-        explode(',', env('FRONTEND_URL', 'http://localhost:5173', 'https://arsha-mart-store.vercel.app')),
-    )),
+        explode(',', env('FRONTEND_URL') ?: 'http://localhost:5173,https://arsha-mart-store.vercel.app'),
+    ))),
 
     'allowed_origins_patterns' => [],
 

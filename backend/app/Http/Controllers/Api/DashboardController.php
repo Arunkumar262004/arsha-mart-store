@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Support\Money;
 use Illuminate\Http\JsonResponse;
@@ -25,6 +26,7 @@ class DashboardController extends Controller
                 'month_sales' => $this->salesSince(now()->startOfMonth()),
                 'month_orders' => Order::where('created_at', '>=', now()->startOfMonth())->count(),
                 'last_7_days' => $this->lastSevenDays(),
+                'top_products' => $this->topProducts(now()->startOfMonth()),
                 'recent_orders' => Order::with('customer')->latest()->latest('id')->limit(5)->get()
                     ->map(fn (Order $order) => [
                         'id' => $order->id,
@@ -51,6 +53,40 @@ class DashboardController extends Controller
     private function salesSince(Carbon $from): string
     {
         return Money::format(Money::toCents(Order::where('created_at', '>=', $from)->sum('grand_total')));
+    }
+
+    /**
+     * This month's sales split by product: the top 5 by revenue, the rest
+     * summed as "Other". Uses the prices saved on each bill line.
+     *
+     * @return list<array{product_id: int|null, name: string, total: string, units: int}>
+     */
+    private function topProducts(Carbon $from, int $limit = 5): array
+    {
+        $rows = OrderItem::query()
+            ->join('orders', 'orders.id', '=', 'order_items.order_id')
+            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
+            ->where('orders.created_at', '>=', $from)
+            ->groupBy('order_items.product_id', 'products.name')
+            ->selectRaw('order_items.product_id, products.name, SUM(order_items.line_total) as total, SUM(order_items.quantity) as units')
+            ->orderByDesc('total')
+            ->get();
+
+        $slice = fn ($id, ?string $name, $total, $units) => [
+            'product_id' => $id,
+            'name' => $name ?? 'Deleted product',
+            'total' => Money::format(Money::toCents($total)),
+            'units' => (int) $units,
+        ];
+
+        $top = $rows->take($limit)->map(fn ($r) => $slice($r->product_id, $r->name, $r->total, $r->units));
+        $rest = $rows->slice($limit);
+
+        if ($rest->isNotEmpty()) {
+            $top->push($slice(null, 'Other ('.$rest->count().' products)', $rest->sum('total'), $rest->sum('units')));
+        }
+
+        return $top->values()->all();
     }
 
     /**

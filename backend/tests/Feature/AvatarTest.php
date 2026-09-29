@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
@@ -45,6 +46,38 @@ class AvatarTest extends TestCase
         $this->post('/api/me/avatar', ['avatar' => UploadedFile::fake()->image('big.jpg')->size(6000)], ['Accept' => 'application/json'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('avatar');
+    }
+
+    public function testUsersCanChangeTheirNameWithoutAPassword(): void
+    {
+        $this->signIn(['billing.create'], ['name' => 'Karthik', 'email' => 'karthik@store.com']);
+
+        $this->putJson('/api/me', ['name' => '  Karthik Raja  ', 'email' => 'KARTHIK@store.com'])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Karthik Raja')
+            ->assertJsonPath('data.email', 'karthik@store.com');
+
+        $this->putJson('/api/me', ['name' => '', 'email' => 'karthik@store.com'])->assertUnprocessable()->assertJsonValidationErrors('name');
+    }
+
+    public function testChangingTheEmailNeedsTheCurrentPasswordAndAFreeAddress(): void
+    {
+        $user = $this->signIn(['billing.create'], ['email' => 'karthik@store.com', 'password' => 'secret123']);
+        User::factory()->create(['email' => 'taken@store.com']);
+
+        $this->putJson('/api/me', ['name' => 'Karthik', 'email' => 'new@store.com'])
+            ->assertUnprocessable()->assertJsonValidationErrors('current_password');
+        $this->putJson('/api/me', ['name' => 'Karthik', 'email' => 'new@store.com', 'current_password' => 'wrong999'])
+            ->assertUnprocessable()->assertJsonValidationErrors('current_password');
+        $this->putJson('/api/me', ['name' => 'Karthik', 'email' => 'taken@store.com', 'current_password' => 'secret123'])
+            ->assertUnprocessable()->assertJsonValidationErrors('email');
+        $this->putJson('/api/me', ['name' => 'Karthik', 'email' => 'not-an-email', 'current_password' => 'secret123'])
+            ->assertUnprocessable()->assertJsonValidationErrors('email');
+
+        $this->putJson('/api/me', ['name' => 'Karthik', 'email' => 'New@Store.com', 'current_password' => 'secret123'])
+            ->assertOk()
+            ->assertJsonPath('data.email', 'new@store.com');
+        $this->assertSame('new@store.com', $user->fresh()->email);
     }
 
     public function testGuestsCannotUpload(): void

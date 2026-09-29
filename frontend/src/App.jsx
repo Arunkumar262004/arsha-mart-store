@@ -4,6 +4,7 @@ import { useAuth } from './auth/AuthContext'
 import { EmptyState, Spinner } from './components/ui'
 import AppLayout from './layout/AppLayout'
 import { homePath } from './layout/navigation'
+import ChangePassword from './pages/ChangePassword'
 import Dashboard from './pages/Dashboard'
 import Inventory from './pages/Inventory'
 import Login from './pages/Login'
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="orders" element={guard('orders.view', <OrderHistory />)} />
         <Route path="inventory" element={guard('products.view', <Inventory />)} />
         <Route path="profile" element={<Profile />} />
+        <Route path="change-password" element={<ChangePassword />} />
         <Route path="reports" element={<Navigate to="/reports/orders" replace />} />
         <Route path="reports/orders" element={guard('reports.view', <OrderReport />)} />
         <Route path="reports/customers" element={guard('reports.view', <CustomerReport />)} />

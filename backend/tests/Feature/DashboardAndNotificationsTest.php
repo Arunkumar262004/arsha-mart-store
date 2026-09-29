@@ -34,6 +34,30 @@ class DashboardAndNotificationsTest extends TestCase
             ->assertJsonPath('stock.out_of_stock', 1);
     }
 
+    public function testTopProductsShowTheFiveBestSellersAndGroupTheRest(): void
+    {
+        Queue::fake();
+        $this->signIn(['dashboard.view']);
+
+        // Seven products; product N sells N units at ₹10, so #7 sells most.
+        $lines = collect(range(1, 7))->map(fn (int $n) => [
+            'product_id' => Product::factory()->create(['name' => "Item {$n}", 'price' => 10, 'tax_percent' => 0, 'stock' => 100])->id,
+            'quantity' => $n,
+        ])->all();
+        app(OrderService::class)->placeOrder('a@example.com', 'A', $lines);
+
+        $this->getJson('/api/dashboard')
+            ->assertOk()
+            ->assertJsonCount(6, 'billing.top_products')
+            ->assertJsonPath('billing.top_products.0.name', 'Item 7')
+            ->assertJsonPath('billing.top_products.0.total', '70.00')
+            ->assertJsonPath('billing.top_products.4.name', 'Item 3')
+            ->assertJsonPath('billing.top_products.5.product_id', null)
+            ->assertJsonPath('billing.top_products.5.name', 'Other (2 products)')
+            ->assertJsonPath('billing.top_products.5.total', '30.00')
+            ->assertJsonPath('billing.top_products.5.units', 3);
+    }
+
     public function testNotificationsShowStockAlertsOnlyToUsersWhoCanViewProducts(): void
     {
         config(['inventory.low_stock_threshold' => 10]);

@@ -59,4 +59,6 @@ export const homePath = (can) => links(visibleNav(can))[0]?.to ?? '/profile'
 export const isWithin = (pathname, to) => pathname === to || pathname.startsWith(`${to}/`)
 
 export const titleFor = (pathname) =>
-  links(NAV).find((item) => isWithin(pathname, item.to))?.label ?? (pathname.startsWith('/profile') ? 'My Profile' : '')
+  links(NAV).find((item) => isWithin(pathname, item.to))?.label ??
+  { '/profile': 'My Profile', '/change-password': 'Change Password' }[pathname] ??
+  ''

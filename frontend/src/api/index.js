@@ -7,6 +7,8 @@ export const login = (email, password) => client.post('/login', { email, passwor
 export const logout = () => client.post('/logout')
 export const getMe = () => client.get('/me').then((r) => r.data)
 export const changePassword = (payload) => client.put('/me/password', payload).then((r) => r.data)
+/** Update your own name; resolves with the updated user. */
+export const updateProfile = (payload) => client.put('/me', payload).then(data)
 /** Upload a profile photo; resolves with the updated user. */
 export const uploadAvatar = (file) => {
   const form = new FormData()

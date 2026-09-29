@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, KeyRound, LogOut } from 'lucide-react'
+import { ChevronDown, KeyRound, LogOut, UserRound } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import Avatar from '../components/Avatar'
 import useClickOutside from './useClickOutside'
@@ -35,6 +35,9 @@ export default function UserMenu() {
             <p className="truncate text-xs text-slate-500">{user?.email}</p>
           </div>
           <Link to="/profile" onClick={close} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+            <UserRound size={16} className="text-slate-400" /> My profile
+          </Link>
+          <Link to="/change-password" onClick={close} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
             <KeyRound size={16} className="text-slate-400" /> Change password
           </Link>
           <button onClick={logout} className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50">

@@ -25,6 +25,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Session & profile (every signed-in user)
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::put('/me', [ProfileController::class, 'update']);
     Route::put('/me/password', [ProfileController::class, 'updatePassword']);
     Route::post('/me/avatar', [ProfileController::class, 'updateAvatar']);
     Route::delete('/me/avatar', [ProfileController::class, 'deleteAvatar']);

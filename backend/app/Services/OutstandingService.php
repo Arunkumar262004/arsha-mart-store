@@ -42,7 +42,8 @@ class OutstandingService
         $entries = VoucherEntry::query()
             ->whereIn('account_id', $accounts->keys())
             ->when($storeId, fn ($q, int $id) => $q->where('store_id', $id))
-            ->where('date', '<=', $asOf->toDateString())
+            // "< next day": SQLite stores the date cast as "Y-m-d 00:00:00", which "<= Y-m-d" would skip.
+            ->where('date', '<', $asOf->copy()->addDay()->toDateString())
             ->orderBy('date')->orderBy('id')
             ->get(['account_id', 'date', 'debit', 'credit'])
             ->groupBy('account_id');

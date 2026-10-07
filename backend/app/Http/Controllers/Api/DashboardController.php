@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductStock;
+use App\Services\DashboardService;
 use App\Support\Money;
 use App\Support\StoreContext;
 use Illuminate\Database\Eloquent\Builder;
@@ -17,12 +18,15 @@ use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(Request $request, DashboardService $dashboard): JsonResponse
     {
+        $year = $request->validate(['year' => ['nullable', 'integer', 'min:2000', 'max:2100']])['year'] ?? null;
         $threshold = (int) config('inventory.low_stock_threshold');
         $today = now()->startOfDay();
 
         return response()->json([
+            // KPI cards, monthly chart, best sellers, donuts, summaries and recent bills.
+            'overview' => $dashboard->overview($year !== null ? (int) $year : null),
             'billing' => [
                 'today_sales' => $this->salesSince($today),
                 'today_orders' => $this->orders()->where('created_at', '>=', $today)->count(),

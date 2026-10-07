@@ -33,7 +33,8 @@ export const saveCompany = (fields) => {
 }
 
 // Dashboard & notifications
-export const getDashboard = () => client.get('/dashboard').then((r) => r.data)
+/** year: which year the monthly sales chart shows (default: this year). */
+export const getDashboard = (year) => client.get('/dashboard', { params: year ? { year } : {} }).then((r) => r.data)
 export const getNotifications = () => client.get('/notifications').then((r) => r.data)
 
 // Billing & orders

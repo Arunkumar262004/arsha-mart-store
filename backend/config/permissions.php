@@ -28,4 +28,17 @@ return [
 
     'reports.view' => ['group' => 'Reports', 'label' => 'View order, customer, stock & employee reports'],
 
+    'quotations.manage' => ['group' => 'Sales documents', 'label' => 'Create quotations & convert them to bills'],
+    'challans.manage' => ['group' => 'Sales documents', 'label' => 'Create delivery challans & invoice them'],
+    'transfers.manage' => ['group' => 'Sales documents', 'label' => 'Transfer stock between stores'],
+
+    'suppliers.manage' => ['group' => 'Purchases', 'label' => 'Add & edit suppliers'],
+    'purchases.manage' => ['group' => 'Purchases', 'label' => 'Record purchases (goods received)'],
+    'returns.manage' => ['group' => 'Purchases', 'label' => 'Sales returns & purchase returns'],
+
+    'payments.manage' => ['group' => 'Accounts', 'label' => 'Customer receipts & supplier payments'],
+    'expenses.manage' => ['group' => 'Accounts', 'label' => 'Record shop expenses'],
+    'accounts.view' => ['group' => 'Accounts', 'label' => 'View ledgers, day book, GST & financial statements'],
+    'accounts.manage' => ['group' => 'Accounts', 'label' => 'Chart of accounts, journal & contra entries'],
+
 ];

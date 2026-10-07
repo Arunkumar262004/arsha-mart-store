@@ -84,6 +84,9 @@ Open **http://localhost:5173**. With the default `MAIL_MAILER=log`, the confirma
 | `admin@store.com` | Admin | Everything, plus **Settings** (Users, Roles & Permissions, Password Reset) |
 | `manager@store.com` | Store Manager | Dashboard, billing, orders, inventory (add/edit products, restock) |
 | `cashier@store.com` | Cashier | Dashboard, billing and order history only |
+| `branch@store.com` | Cashier, Anna Nagar Branch only | Same as Cashier, locked to the branch store |
+
+The seed also has an **Accountant** role (purchases, returns, payments, expenses, ledgers and GST) that you can give to a user.
 
 Seeded customers you can try: `arun@example.com` (mobile `9578777764`) and `priya@example.com` (mobile `9092276443`). Type either the mobile number or the email, and the other two fields fill in. Bills for these customers send real WhatsApp messages, so change the numbers in `CustomerSeeder` to your own before testing.
 
@@ -348,6 +351,32 @@ Layout: a dark sidebar that collapses to icons on desktop (the choice is remembe
 | **My profile** (`/profile`) | Account details, permissions, change own password |
 
 After each bill or stock change, the affected lists and the notification bell refresh straight away. The bell also re-checks every 60 seconds.
+
+### Departmental store modules
+
+**Multiple stores**
+- Every bill, stock level, document and accounting entry belongs to a store. Stock is kept per store in `product_stocks`.
+- Pick the store from the header's store switcher. Admins, and users with no store assigned, can also pick **All stores** to read combined figures. Nothing can be created in that mode.
+- A user assigned to a store (Employees page) is always locked to it.
+- Manage stores under **Settings → Stores**: name, code, GSTIN, address, state and GST state code.
+
+**Document numbers**
+- Numbers are gap-free per store, document type and financial year (April–March), e.g. `MAIN/INV/26-27/00001`.
+- The prefixes are in `backend/config/documents.php`.
+
+| Menu | Screens |
+|---|---|
+| **Sales** | **Tax Invoices**: every bill as an A4 GST invoice with HSN summary and amount in words, plus PDF. **Quotations**: convert to a bill at the quoted prices. **Delivery Challans**: goods leave before invoicing; one or more challans become one bill. **Sales Returns**: credit notes against a bill, with stock back and refund in cash, bank or credit. |
+| **New Bill** | Payment mode: Cash, Card, UPI or Credit (pay later, owed on the customer's ledger). An optional business-customer section (GSTIN, billing address, place of supply) switches to IGST when the place of supply is in another state. |
+| **Inventory** | Products have HSN code, category (department), unit and cost price. **Stock by store** view. **Stock Transfers**: dispatch from one store, receive at the other, with an in-transit status. |
+| **Purchases** | **Suppliers** with outstanding balance. **Purchases**: goods received with input GST, freight and round-off; this updates cost price and stock. **Purchase Returns**: debit notes. |
+| **Accounts** | **Receipts** (from customers), **Payments** (to suppliers), **Expenses**, **Day Book & Vouchers** (with journal and contra entry), **Ledgers** (running balance; cash and bank books), **Chart of Accounts** (with opening balances), **Outstanding** (receivables and payables with 0–30/31–60/61–90/90+ ageing), **Day Closing** (collections per cashier and payment mode, counted cash vs expected), **Financial Statements** (trial balance, profit and loss with stock valuation, balance sheet; PDF), **GST Reports** (GSTR-1 sections with Excel export, GSTR-3B with PDF). |
+| **Reports → Sales Analysis** | Sales and margin by category, payment mode, store, day and hour, and top products. |
+
+**Accounting**
+- It is double-entry: `accounts`, `vouchers` and `voucher_entries`. Every module posts through `App\Services\AccountingService`, so the ledgers and statements always come from one balanced set of entries.
+- Each bill posts a sales voucher automatically.
+- Cancelling a purchase, receipt, payment or expense keeps the document and posts a reversing journal entry.
 
 ---
 

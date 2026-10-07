@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getOrderHistory } from '../api'
 import { parseApiError } from '../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { Printer } from 'lucide-react'
 import ReceiptModal from '../components/receipt/ReceiptModal'
-import { Alert, Button, Card, Spinner, inputClass } from '../components/ui'
+import { billNumber, paymentLabel } from '../components/receipt/paymentModes'
+import { Alert, Badge, Button, Card, Spinner, inputClass } from '../components/ui'
 import { formatINR } from '../lib/money'
 
 export default function OrderHistory() {
+  const { currentStore, isAllStores } = useAuth()
   const [params, setParams] = useSearchParams()
   const email = params.get('email') ?? ''
   const page = Number(params.get('page') ?? 1)
@@ -44,7 +47,7 @@ export default function OrderHistory() {
 
   return (
     <div className="space-y-6">
-      <Card title="Order history">
+      <Card title={['Order history', isAllStores ? 'All stores' : currentStore?.name].filter(Boolean).join(' · ')}>
         <form onSubmit={search} className="flex flex-col gap-2 sm:flex-row">
           <input
             type="email"
@@ -76,10 +79,15 @@ export default function OrderHistory() {
               <details key={order.id} className="group rounded-xl border border-slate-200 bg-white shadow-sm">
                 <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-5 py-3">
                   <span>
-                    <span className="font-semibold">{order.order_number}</span>
-                    <span className="ml-3 text-sm text-slate-500">{new Date(order.created_at).toLocaleString('en-IN')}</span>
+                    <span className="font-semibold">{billNumber(order)}</span>
+                    {order.invoice_number && <span className="ml-2 text-xs text-slate-400">Order {order.order_number}</span>}
+                    <span className="block text-sm text-slate-500 sm:ml-3 sm:inline">
+                      {new Date(order.created_at).toLocaleString('en-IN')}
+                      {order.store?.name && ` · ${order.store.name}`}
+                    </span>
                   </span>
                   <span className="flex items-center gap-3 text-sm">
+                    <Badge tone={order.payment_mode === 'credit' ? 'amber' : 'slate'}>{paymentLabel(order.payment_mode)}</Badge>
                     <span className="text-slate-500">{order.items.length} item(s)</span>
                     <span className="font-semibold">{formatINR(order.grand_total)}</span>
                     <span className="text-slate-400 transition group-open:rotate-90">›</span>

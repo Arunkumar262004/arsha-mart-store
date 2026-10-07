@@ -33,6 +33,7 @@ export default function UserMenu() {
           <div className="border-b border-slate-100 px-4 py-3">
             <p className="truncate text-sm font-medium text-slate-900">{user?.name}</p>
             <p className="truncate text-xs text-slate-500">{user?.email}</p>
+            <p className="mt-1 truncate text-xs text-slate-500">Store: {user?.store?.name ?? 'All stores'}</p>
           </div>
           <Link to="/profile" onClick={close} className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
             <UserRound size={16} className="text-slate-400" /> My profile

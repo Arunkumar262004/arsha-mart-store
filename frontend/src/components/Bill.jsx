@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { CircleCheck, History, Mail, MessageCircle, Plus, Printer } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { formatINR } from '../lib/money'
+import { billNumber, paymentLabel } from './receipt/paymentModes'
 import ThermalReceipt from './receipt/ThermalReceipt'
 import usePrintReceipt from './receipt/usePrintReceipt'
 import { Button, Card } from './ui'
@@ -27,7 +28,7 @@ export function PaperToggle({ paper, setPaper }) {
 
 export default function Bill({ order, onNewOrder }) {
   const { can } = useAuth()
-  const { contentRef, paper, setPaper, print } = usePrintReceipt(order.order_number)
+  const { contentRef, paper, setPaper, print } = usePrintReceipt(billNumber(order).replaceAll('/', '-'))
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
@@ -46,8 +47,12 @@ export default function Bill({ order, onNewOrder }) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-emerald-700">Bill generated</p>
-              <p className="truncate text-lg font-semibold text-slate-900">{order.order_number}</p>
-              <p className="text-sm text-slate-500">{order.customer.name}</p>
+              <p className="truncate text-lg font-semibold text-slate-900">{billNumber(order)}</p>
+              {order.invoice_number && <p className="truncate text-xs text-slate-400">Order {order.order_number}</p>}
+              <p className="text-sm text-slate-500">
+                {order.customer.name} · {paymentLabel(order.payment_mode)}
+                {order.store?.name && <span className="block text-xs text-slate-400">{order.store.name}</span>}
+              </p>
             </div>
           </div>
 
@@ -55,7 +60,12 @@ export default function Bill({ order, onNewOrder }) {
             <span className="text-sm text-slate-300">Grand total</span>
             <span className="text-2xl font-semibold tabular-nums">{formatINR(order.grand_total)}</span>
           </div>
-          {order.amount_paid !== null && (
+          {order.payment_mode === 'credit' ? (
+            <div className="mt-2 flex justify-between rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+              <span>Balance due (credit)</span>
+              <span className="tabular-nums">{formatINR(order.grand_total)}</span>
+            </div>
+          ) : order.amount_paid !== null && (
             <div className="mt-2 flex justify-between rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
               <span>Change returned</span>
               <span className="tabular-nums">{formatINR(order.change_due)}</span>

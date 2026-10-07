@@ -20,7 +20,7 @@ class NotificationController extends Controller
         if ($request->user()->can('products.view')) {
             $threshold = (int) config('inventory.low_stock_threshold');
 
-            foreach (Product::belowStock($threshold)->orderBy('stock')->orderBy('name')->get() as $product) {
+            foreach (Product::withStock()->belowStock($threshold)->orderBy('stock')->orderBy('name')->get() as $product) {
                 $out = $product->stock === 0;
                 $items->push([
                     'id' => "stock-{$product->id}-{$product->stock}",

@@ -23,6 +23,13 @@ class RoleSeeder extends Seeder
         $cashier = Role::firstOrCreate(['name' => 'Cashier'], ['description' => 'Counter staff: billing and order lookup']);
         $cashier->syncPermissions(['dashboard.view', 'billing.create', 'orders.view']);
 
+        $accountant = Role::firstOrCreate(['name' => 'Accountant'], ['description' => 'Books: purchases, payments, expenses, ledgers and GST']);
+        $accountant->syncPermissions([
+            'dashboard.view', 'orders.view', 'products.view', 'reports.view',
+            'suppliers.manage', 'purchases.manage', 'returns.manage',
+            'payments.manage', 'expenses.manage', 'accounts.view', 'accounts.manage',
+        ]);
+
         foreach ([
             ['Senthil Kumar', 'admin@store.com', $admin],
             ['Meenakshi Sundaram', 'manager@store.com', $manager],

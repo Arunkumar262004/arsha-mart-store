@@ -1,27 +1,31 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Pencil, Trash2, UserPlus, Users as UsersIcon } from 'lucide-react'
-import { createUser, deleteUser, getRoles, getUsers, updateUser } from '../../api'
+import { createUser, deleteUser, getAllStores, getRoles, getUsers, updateUser } from '../../api'
 import { parseApiError } from '../../api/client'
 import { useAuth } from '../../auth/AuthContext'
 import { useToast } from '../../components/Toast'
 import { Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Spinner, inputClass } from '../../components/ui'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 const lastLogin = (iso) => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Never')
 
 export default function Users() {
-  const { user: me } = useAuth()
+  const confirm = useConfirm()
+  const { user: me, refreshStores } = useAuth()
   const toast = useToast()
   const [users, setUsers] = useState(null)
   const [roles, setRoles] = useState([])
+  const [stores, setStores] = useState([])
   const [error, setError] = useState(null)
   const [editing, setEditing] = useState(null)
 
   const load = useCallback(() => {
-    Promise.all([getUsers(), getRoles()])
-      .then(([u, r]) => {
+    Promise.all([getUsers(), getRoles(), getAllStores()])
+      .then(([u, r, s]) => {
         setUsers(u)
         setRoles(r)
+        setStores(s)
       })
       .catch((e) => setError(parseApiError(e).message))
   }, [])
@@ -29,7 +33,7 @@ export default function Users() {
   useEffect(load, [load])
 
   async function remove(user) {
-    if (!window.confirm(`Delete ${user.name}? They will be signed out immediately.`)) return
+    if (!(await confirm({ title: `Delete ${user.name}?`, message: 'They will be signed out immediately.', confirmLabel: 'Delete employee' }))) return
     try {
       await deleteUser(user.id)
       toast(`${user.name} deleted.`)
@@ -53,11 +57,12 @@ export default function Users() {
         {users?.length === 0 && <EmptyState icon={UsersIcon} title="No employees yet" />}
         {users?.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <th className="px-5 py-3">Employee</th>
                   <th className="px-5 py-3">Role</th>
+                  <th className="px-5 py-3">Store</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Last sign-in</th>
                   <th className="px-5 py-3 text-right">Actions</th>
@@ -73,6 +78,7 @@ export default function Users() {
                       <p className="text-xs text-slate-500">{u.email}</p>
                     </td>
                     <td className="px-5 py-3"><Badge tone={u.role?.is_admin ? 'brand' : 'slate'}>{u.role?.name ?? 'None'}</Badge></td>
+                    <td className="px-5 py-3 text-slate-600">{u.store ? u.store.name : <span className="text-slate-400">All stores</span>}</td>
                     <td className="px-5 py-3">{u.is_active ? <Badge tone="green">Active</Badge> : <Badge tone="red">Deactivated</Badge>}</td>
                     <td className="px-5 py-3 text-slate-500">{lastLogin(u.last_login_at)}</td>
                     <td className="px-5 py-3">
@@ -96,11 +102,14 @@ export default function Users() {
         <UserModal
           user={editing === 'new' ? null : editing}
           roles={roles}
+          stores={stores}
           isSelf={editing !== 'new' && editing.id === me.id}
           onClose={() => setEditing(null)}
           onSaved={(saved, isNew) => {
             setEditing(null)
             toast(isNew ? `${saved.name} can now sign in.` : `${saved.name} updated.`)
+            // Your own store may have changed: reload the header's store list.
+            if (saved.id === me.id) refreshStores().catch(() => {})
             load()
           }}
         />
@@ -109,13 +118,14 @@ export default function Users() {
   )
 }
 
-function UserModal({ user, roles, isSelf, onClose, onSaved }) {
+function UserModal({ user, roles, stores, isSelf, onClose, onSaved }) {
   const isNew = user === null
   const [form, setForm] = useState({
     name: user?.name ?? '',
     email: user?.email ?? '',
     role_id: user?.role?.id ?? roles.find((r) => !r.is_admin)?.id ?? roles[0]?.id,
     is_active: user?.is_active ?? true,
+    store_id: user?.store_id ? String(user.store_id) : '', // '' = all stores
     password: '',
     password_confirmation: '',
   })
@@ -128,7 +138,7 @@ function UserModal({ user, roles, isSelf, onClose, onSaved }) {
     e.preventDefault()
     setSaving(true)
     setError(null)
-    const body = { name: form.name, email: form.email, role_id: Number(form.role_id), is_active: form.is_active }
+    const body = { name: form.name, email: form.email, role_id: Number(form.role_id), is_active: form.is_active, store_id: form.store_id ? Number(form.store_id) : null }
     try {
       const saved = isNew
         ? await createUser({ ...body, password: form.password, password_confirmation: form.password_confirmation })
@@ -166,6 +176,21 @@ function UserModal({ user, roles, isSelf, onClose, onSaved }) {
               <option key={r.id} value={r.id}>
                 {r.name}
                 {r.description ? ` · ${r.description}` : ''}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field
+          label="Store"
+          error={fieldError('store_id')}
+          hint={form.store_id ? 'They can only see and bill in this store.' : 'They can switch between every store.'}
+          className="sm:col-span-2"
+        >
+          <select className={inputClass} value={form.store_id} onChange={set('store_id')}>
+            <option value="">All stores</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id} disabled={!s.is_active && String(s.id) !== form.store_id}>
+                {s.name} ({s.code}){s.is_active ? '' : ' · inactive'}
               </option>
             ))}
           </select>

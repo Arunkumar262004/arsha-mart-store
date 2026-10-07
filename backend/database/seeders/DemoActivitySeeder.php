@@ -21,7 +21,7 @@ class DemoActivitySeeder extends Seeder
         $cashier = User::where('email', 'cashier@store.com')->first();
         $customers = Customer::all();
         // Keep the deliberately-low products low so the alerts have content.
-        $products = Product::where('stock', '>=', 20)->get();
+        $products = Product::withStock()->get()->where('stock', '>=', 20)->values();
 
         mt_srand(42);
 

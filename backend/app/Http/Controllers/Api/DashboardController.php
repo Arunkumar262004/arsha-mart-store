@@ -7,7 +7,10 @@ use App\Http\Resources\ProductResource;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\ProductStock;
 use App\Support\Money;
+use App\Support\StoreContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -22,15 +25,16 @@ class DashboardController extends Controller
         return response()->json([
             'billing' => [
                 'today_sales' => $this->salesSince($today),
-                'today_orders' => Order::where('created_at', '>=', $today)->count(),
+                'today_orders' => $this->orders()->where('created_at', '>=', $today)->count(),
                 'month_sales' => $this->salesSince(now()->startOfMonth()),
-                'month_orders' => Order::where('created_at', '>=', now()->startOfMonth())->count(),
+                'month_orders' => $this->orders()->where('created_at', '>=', now()->startOfMonth())->count(),
                 'last_7_days' => $this->lastSevenDays(),
                 'top_products' => $this->topProducts(now()->startOfMonth()),
-                'recent_orders' => Order::with('customer')->latest()->latest('id')->limit(5)->get()
+                'recent_orders' => $this->orders()->with('customer')->latest()->latest('id')->limit(5)->get()
                     ->map(fn (Order $order) => [
                         'id' => $order->id,
                         'order_number' => $order->order_number,
+                        'invoice_number' => $order->invoice_number,
                         'customer' => $order->customer->name,
                         'email' => $order->customer->email,
                         'grand_total' => $order->grand_total,
@@ -40,19 +44,36 @@ class DashboardController extends Controller
             'stock' => [
                 'threshold' => $threshold,
                 'products' => Product::count(),
-                'units' => (int) Product::sum('stock'),
-                'low_stock' => Product::belowStock($threshold)->where('stock', '>', 0)->count(),
-                'out_of_stock' => Product::where('stock', 0)->count(),
+                'units' => (int) ProductStock::query()
+                    ->when($this->storeId(), fn ($q, int $id) => $q->where('store_id', $id))
+                    ->sum('stock'),
+                'low_stock' => Product::belowStock($threshold)->count() - Product::stockEquals(0)->count(),
+                'out_of_stock' => Product::stockEquals(0)->count(),
                 'lowest' => ProductResource::collection(
-                    Product::belowStock($threshold)->orderBy('stock')->orderBy('name')->limit(6)->get()
+                    Product::withStock()->belowStock($threshold)->orderBy('stock')->orderBy('name')->limit(6)->get()
                 ),
             ],
         ]);
     }
 
+    /**
+     * Bills of the store being viewed (every store in "all stores" mode).
+     *
+     * @return Builder<Order>
+     */
+    private function orders(): Builder
+    {
+        return Order::query()->when($this->storeId(), fn (Builder $q, int $id) => $q->where('orders.store_id', $id));
+    }
+
+    private function storeId(): ?int
+    {
+        return app(StoreContext::class)->scopeId();
+    }
+
     private function salesSince(Carbon $from): string
     {
-        return Money::format(Money::toCents(Order::where('created_at', '>=', $from)->sum('grand_total')));
+        return Money::format(Money::toCents($this->orders()->where('created_at', '>=', $from)->sum('grand_total')));
     }
 
     /**
@@ -67,6 +88,7 @@ class DashboardController extends Controller
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
             ->where('orders.created_at', '>=', $from)
+            ->when($this->storeId(), fn ($q, int $id) => $q->where('orders.store_id', $id))
             ->groupBy('order_items.product_id', 'products.name')
             ->selectRaw('order_items.product_id, products.name, SUM(order_items.line_total) as total, SUM(order_items.quantity) as units')
             ->orderByDesc('total')
@@ -98,7 +120,7 @@ class DashboardController extends Controller
     {
         $from = now()->subDays(6)->startOfDay();
 
-        $rows = Order::where('created_at', '>=', $from)
+        $rows = $this->orders()->where('created_at', '>=', $from)
             ->selectRaw('DATE(created_at) as day, SUM(grand_total) as total, COUNT(*) as orders')
             ->groupBy('day')
             ->get()

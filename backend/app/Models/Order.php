@@ -8,16 +8,29 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 
 #[Fillable([
-    'order_number', 'customer_id', 'subtotal', 'tax_total', 'is_interstate',
+    'store_id', 'order_number', 'invoice_number', 'payment_mode', 'customer_id', 'subtotal', 'tax_total', 'is_interstate',
     'cgst_amount', 'sgst_amount', 'igst_amount', 'grand_total',
     'amount_paid', 'change_due', 'confirmation_sent_at', 'whatsapp_sent_at', 'created_by', 'created_by_name',
+    'customer_gstin', 'billing_address', 'place_of_supply',
 ])]
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
     use HasFactory;
+
+    public const PAYMENT_CASH = 'cash';
+
+    public const PAYMENT_CARD = 'card';
+
+    public const PAYMENT_UPI = 'upi';
+
+    /** Customer pays later: the amount is owed on their ledger. */
+    public const PAYMENT_CREDIT = 'credit';
+
+    public const PAYMENT_MODES = [self::PAYMENT_CASH, self::PAYMENT_CARD, self::PAYMENT_UPI, self::PAYMENT_CREDIT];
 
     /**
      * Get the attributes that should be cast.
@@ -63,5 +76,23 @@ class Order extends Model
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * @return BelongsTo<Store, $this>
+     */
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
+    }
+
+    /**
+     * The sales voucher posted for this bill.
+     *
+     * @return MorphOne<Voucher, $this>
+     */
+    public function voucher(): MorphOne
+    {
+        return $this->morphOne(Voucher::class, 'source');
     }
 }

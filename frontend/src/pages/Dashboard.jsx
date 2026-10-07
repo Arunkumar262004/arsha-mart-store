@@ -17,7 +17,7 @@ const greeting = () => {
 const time = (iso) => new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })
 
 export default function Dashboard() {
-  const { user, can } = useAuth()
+  const { user, can, currentStore, isAllStores } = useAuth()
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
@@ -47,7 +47,13 @@ export default function Dashboard() {
           <h1 className="text-xl font-semibold tracking-tight text-slate-900">
             {greeting()}, {user.name.split(' ')[0]}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">Here's how the store is doing today.</p>
+          <p className="mt-1 text-sm text-slate-500">
+            {isAllStores ? (
+              <>Here's how <b className="font-medium text-slate-700">all stores</b> are doing today.</>
+            ) : (
+              <>Here's how <b className="font-medium text-slate-700">{currentStore?.name ?? 'the store'}</b> is doing today.</>
+            )}
+          </p>
         </div>
         {can('billing.create') && (
           <Link to="/billing">
@@ -101,7 +107,7 @@ export default function Dashboard() {
               <tbody className="divide-y divide-slate-100">
                 {billing.recent_orders.map((o) => (
                   <tr key={o.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-medium text-slate-800">{o.order_number}</td>
+                    <td className="px-5 py-3 font-medium text-slate-800">{o.invoice_number || o.order_number}</td>
                     <td className="px-5 py-3">
                       {can('orders.view') ? (
                         <Link to={`/orders?email=${encodeURIComponent(o.email)}`} className="hover:text-brand-600">

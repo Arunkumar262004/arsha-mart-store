@@ -25,6 +25,7 @@ class StockMovementResource extends JsonResource
             'note' => $this->note,
             'user' => ($this->relationLoaded('user') ? $this->user?->name : null) ?? $this->user_name,
             'order_number' => $this->whenLoaded('order', fn () => $this->order?->order_number),
+            'store' => $this->whenLoaded('store', fn () => $this->store?->name),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

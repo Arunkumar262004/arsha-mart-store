@@ -20,6 +20,9 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'order_number' => $this->order_number,
+            'invoice_number' => $this->invoice_number,
+            'payment_mode' => $this->payment_mode,
+            'store' => StoreResource::make($this->whenLoaded('store')),
             'customer' => CustomerResource::make($this->whenLoaded('customer')),
             // The saved name covers a cashier whose account was deleted.
             'cashier' => ($this->relationLoaded('cashier') ? $this->cashier?->name : null) ?? $this->created_by_name,
@@ -27,6 +30,9 @@ class OrderResource extends JsonResource
             'subtotal' => $this->subtotal,
             'tax_total' => $this->tax_total,
             'is_interstate' => $this->is_interstate,
+            'customer_gstin' => $this->customer_gstin,
+            'billing_address' => $this->billing_address,
+            'place_of_supply' => $this->place_of_supply,
             'cgst_amount' => $this->cgst_amount,
             'sgst_amount' => $this->sgst_amount,
             'igst_amount' => $this->igst_amount,

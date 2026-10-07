@@ -35,6 +35,8 @@ class StoreUserRequest extends FormRequest
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
             'role_id' => ['required', 'integer', 'exists:roles,id'],
+            // null / missing = works in every store
+            'store_id' => ['nullable', 'integer', 'exists:stores,id'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

@@ -36,7 +36,11 @@ class SaveProductRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:50', 'regex:/^[A-Z0-9\-_]+$/', Rule::unique('products', 'code')->ignore($this->route('product'))],
+            'hsn_code' => ['nullable', 'string', 'regex:/^[0-9]{4,8}$/'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'unit' => ['sometimes', 'string', 'max:10'],
             'price' => ['required', 'numeric', 'min:0.01', 'max:99999999.99'],
+            'cost_price' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             'tax_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             'stock' => $creating ? ['required', 'integer', 'min:0', 'max:1000000'] : ['prohibited'],
         ];
@@ -49,6 +53,7 @@ class SaveProductRequest extends FormRequest
     {
         return [
             'code.regex' => 'Use letters, numbers, dashes or underscores only.',
+            'hsn_code.regex' => 'An HSN code is 4 to 8 digits.',
             'stock.prohibited' => 'Change stock with a restock or correction instead.',
         ];
     }

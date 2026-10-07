@@ -1,12 +1,32 @@
 import { QRCodeSVG } from 'qrcode.react'
 import { toCents } from '../../lib/money'
+import { billNumber, paymentLabel } from './paymentModes'
 import './receipt.css'
 
-const STORE = {
-  name: import.meta.env.VITE_STORE_NAME ?? 'Arsha Mart',
+// Fallback header for bills without store details (older API responses).
+const DEFAULT_STORE = {
+  name: import.meta.env.VITE_STORE_NAME ?? 'Inofex Retail',
   address: import.meta.env.VITE_STORE_ADDRESS ?? '',
   phone: import.meta.env.VITE_STORE_PHONE ?? '',
   gstin: import.meta.env.VITE_STORE_GSTIN ?? '',
+}
+
+/**
+ * Receipt header: the seller the API works out for the bill's store (company
+ * legal details, or the store's own address / GSTIN), falling back to the
+ * VITE_STORE_* values for old responses.
+ */
+function storeHeader(store) {
+  const seller = store?.seller ?? store
+  if (!seller?.name) return DEFAULT_STORE
+  const place = [seller.city, seller.state && seller.pincode ? `${seller.state} - ${seller.pincode}` : seller.state || seller.pincode]
+  return {
+    name: seller.name,
+    branch: seller.branch ?? '',
+    address: [seller.address, ...place].filter(Boolean).join(', '),
+    phone: seller.phone ?? '',
+    gstin: seller.gstin ?? '',
+  }
 }
 
 const amt = (cents) => (cents / 100).toFixed(2)
@@ -39,20 +59,26 @@ export default function ThermalReceipt({ order, paper = '80', ref }) {
   const gst = gstSummary(order.items)
   const interstate = Boolean(order.is_interstate)
   const units = order.items.reduce((s, i) => s + i.quantity, 0)
+  const store = storeHeader(order.store)
+  const isCredit = order.payment_mode === 'credit'
 
   return (
     <div ref={ref} className={`rcpt ${paper === '58' ? 'rcpt--58' : ''}`}>
       <div className="rcpt-center">
-        <div className="rcpt-store">{STORE.name}</div>
-        {STORE.address && <div className="rcpt-muted">{STORE.address}</div>}
-        {STORE.phone && <div className="rcpt-muted">Ph: {STORE.phone}</div>}
-        {STORE.gstin && <div className="rcpt-muted">GSTIN: {STORE.gstin}</div>}
+        <div className="rcpt-store">{store.name}</div>
+        {store.branch && <div className="rcpt-muted">{store.branch}</div>}
+        {store.address && <div className="rcpt-muted">{store.address}</div>}
+        {store.phone && <div className="rcpt-muted">Ph: {store.phone}</div>}
+        {store.gstin && <div className="rcpt-muted">GSTIN: {store.gstin}</div>}
       </div>
 
       <hr className="rcpt-rule" />
       <div className="rcpt-title">TAX INVOICE</div>
 
-      <div className="rcpt-row"><span>Bill No</span><span className="rcpt-bold">{order.order_number}</span></div>
+      <div className="rcpt-row"><span>Invoice No</span><span className="rcpt-bold">{billNumber(order)}</span></div>
+      {order.invoice_number && (
+        <div className="rcpt-row rcpt-small"><span>Order No</span><span>{order.order_number}</span></div>
+      )}
       <div className="rcpt-row">
         <span>{created.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
         <span>{created.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -60,6 +86,9 @@ export default function ThermalReceipt({ order, paper = '80', ref }) {
       {order.cashier && <div className="rcpt-row"><span>Cashier</span><span>{order.cashier}</span></div>}
       <div className="rcpt-row"><span>Customer</span><span>{order.customer.name}</span></div>
       {order.customer.phone && <div className="rcpt-row"><span>Mobile</span><span>{order.customer.phone}</span></div>}
+      {order.customer_gstin && <div className="rcpt-row"><span>GSTIN</span><span>{order.customer_gstin}</span></div>}
+      {order.place_of_supply && <div className="rcpt-row"><span>Place of supply</span><span>{order.place_of_supply}</span></div>}
+      <div className="rcpt-row"><span>Payment</span><span className="rcpt-bold">{paymentLabel(order.payment_mode)}</span></div>
 
       <hr className="rcpt-rule" />
       <div className="rcpt-row rcpt-bold rcpt-small"><span>ITEM / QTY x RATE</span><span>AMOUNT</span></div>
@@ -94,12 +123,19 @@ export default function ThermalReceipt({ order, paper = '80', ref }) {
       <div className="rcpt-row rcpt-total"><span>TOTAL</span><span>₹{money(order.grand_total)}</span></div>
       <hr className="rcpt-rule rcpt-rule--double" />
 
-      {order.amount_paid !== null && order.amount_paid !== undefined && (
+      {isCredit ? (
         <>
-          <div className="rcpt-row"><span>Cash</span><span>{money(order.amount_paid)}</span></div>
-          <div className="rcpt-row rcpt-bold"><span>Change</span><span>{money(order.change_due)}</span></div>
+          <div className="rcpt-row rcpt-bold"><span>Balance due</span><span>{money(order.grand_total)}</span></div>
           <hr className="rcpt-rule" />
         </>
+      ) : (
+        order.amount_paid !== null && order.amount_paid !== undefined && (
+          <>
+            <div className="rcpt-row"><span>{paymentLabel(order.payment_mode)} received</span><span>{money(order.amount_paid)}</span></div>
+            <div className="rcpt-row rcpt-bold"><span>Change</span><span>{money(order.change_due)}</span></div>
+            <hr className="rcpt-rule" />
+          </>
+        )
       )}
 
       <div className="rcpt-bold rcpt-small">GST SUMMARY</div>
@@ -138,7 +174,7 @@ export default function ThermalReceipt({ order, paper = '80', ref }) {
 
       <hr className="rcpt-rule" />
       <div className="rcpt-qr">
-        <QRCodeSVG value={order.order_number} size={paper === '58' ? 64 : 80} level="M" />
+        <QRCodeSVG value={billNumber(order)}size={paper === '58' ? 64 : 80} level="M" />
       </div>
       <div className="rcpt-center rcpt-bold">Thank you! Visit again</div>
       <div className="rcpt-center rcpt-small">Goods once sold can't be exchange or Return.</div>

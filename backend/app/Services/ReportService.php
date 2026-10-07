@@ -8,6 +8,7 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Support\Money;
 use App\Support\ReportPeriod;
+use App\Support\StoreContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -140,6 +141,7 @@ class ReportService
     {
         return StockMovement::query()
             ->whereBetween('created_at', [$period->from, $period->to])
+            ->when($this->storeId(), fn (Builder $q, int $id) => $q->where('store_id', $id))
             ->when($filters['employee_id'] ?? null, fn (Builder $q, $id) => $q->where('user_id', $id))
             ->when($filters['type'] ?? null, fn (Builder $q, string $type) => $type === 'adjustments'
                 ? $q->where('type', '!=', StockMovement::TYPE_SALE)
@@ -191,6 +193,7 @@ class ReportService
 
         $stock = StockMovement::query()
             ->whereBetween('created_at', [$period->from, $period->to])
+            ->when($this->storeId(), fn (Builder $q, int $id) => $q->where('store_id', $id))
             ->where('type', '!=', StockMovement::TYPE_SALE)
             ->whereNotNull('user_id')
             ->selectRaw('user_id, COUNT(*) as adjustments_count, SUM(CASE WHEN quantity > 0 THEN quantity ELSE 0 END) as units_added, SUM(CASE WHEN quantity < 0 THEN -quantity ELSE 0 END) as units_removed')
@@ -249,7 +252,17 @@ class ReportService
      */
     private function ordersIn(ReportPeriod $period): Builder
     {
-        return Order::query()->whereBetween('orders.created_at', [$period->from, $period->to]);
+        return Order::query()->whereBetween('orders.created_at', [$period->from, $period->to])
+            ->when($this->storeId(), fn (Builder $q, int $id) => $q->where('orders.store_id', $id));
+    }
+
+    /**
+     * The store being reported on; null = every store. Read per call because
+     * a shared-link download sets the store after this service is built.
+     */
+    private function storeId(): ?int
+    {
+        return app(StoreContext::class)->scopeId();
     }
 
     private function money(string|int|float|null $amount): string

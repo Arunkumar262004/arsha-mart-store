@@ -19,14 +19,14 @@ class UserController extends Controller
 {
     public function index(): AnonymousResourceCollection
     {
-        return UserResource::collection(User::with('role')->orderBy('name')->get());
+        return UserResource::collection(User::with(['role', 'store'])->orderBy('name')->get());
     }
 
     public function store(StoreUserRequest $request): JsonResponse
     {
         $user = User::create($request->validated());
 
-        return UserResource::make($user->load('role'))->response()->setStatusCode(201);
+        return UserResource::make($user->load(['role', 'store']))->response()->setStatusCode(201);
     }
 
     public function update(UpdateUserRequest $request, User $user): UserResource
@@ -38,7 +38,7 @@ class UserController extends Controller
             $user->tokens()->delete();
         }
 
-        return UserResource::make($user->load('role'));
+        return UserResource::make($user->load(['role', 'store']));
     }
 
     /**

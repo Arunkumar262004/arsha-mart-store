@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Models\Order;
+use App\Support\GstStates;
 use App\Support\Phone;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
@@ -38,6 +40,10 @@ class StoreOrderRequest extends FormRequest
         if (is_string($this->customer_phone)) {
             $this->merge(['customer_phone' => Phone::normalize($this->customer_phone)]);
         }
+
+        if (is_string($this->customer_gstin)) {
+            $this->merge(['customer_gstin' => GstStates::normalizeGstin($this->customer_gstin)]);
+        }
     }
 
     /**
@@ -71,9 +77,15 @@ class StoreOrderRequest extends FormRequest
             'items' => ['required', 'array', 'min:1', 'max:50'],
             'items.*.product_id' => ['required', 'integer', 'distinct', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:10000'],
-            'amount_paid' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
+            'amount_paid' => ['nullable', 'numeric', 'min:0', 'max:9999999999', 'prohibited_if:payment_mode,credit'],
+            // credit = customer pays later; the total is owed on their ledger
+            'payment_mode' => ['sometimes', Rule::in(Order::PAYMENT_MODES)],
             // true when the customer is outside the store's state: IGST instead of CGST + SGST
             'interstate' => ['sometimes', 'boolean'],
+            // B2B (GST invoice): a place of supply in another state makes the bill IGST.
+            'customer_gstin' => ['nullable', 'string', 'regex:'.GstStates::GSTIN_PATTERN],
+            'billing_address' => ['nullable', 'string', 'max:500'],
+            'place_of_supply' => ['nullable', 'string', Rule::in(GstStates::codes())],
         ];
     }
 
@@ -138,9 +150,12 @@ class StoreOrderRequest extends FormRequest
             'customer_phone.unique' => 'This mobile number already belongs to another customer.',
             'customer_phone.regex' => 'Enter a valid mobile number, e.g. 9876543210 or +91 98765 43210.',
             'items.required' => 'Add at least one product to the order.',
+            'amount_paid.prohibited_if' => 'A credit sale is paid later; leave the amount paid empty.',
             'items.*.product_id.distinct' => 'Each product may appear only once; adjust the quantity instead.',
             'items.*.product_id.exists' => 'The selected product does not exist.',
             'items.*.quantity.min' => 'Quantity must be at least 1.',
+            'customer_gstin.regex' => 'Enter a valid 15-character GSTIN, e.g. 29ABCDE1234F1Z5.',
+            'place_of_supply.in' => 'Choose a valid state for the place of supply.',
         ];
     }
 }

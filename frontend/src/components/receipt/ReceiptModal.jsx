@@ -1,18 +1,19 @@
 import { Printer } from 'lucide-react'
 import { PaperToggle } from '../Bill'
 import { Button, Modal } from '../ui'
+import { billNumber } from './paymentModes'
 import ThermalReceipt from './ThermalReceipt'
 import usePrintReceipt from './usePrintReceipt'
 
 /** Preview and (re)print the thermal receipt of an existing order. */
 export default function ReceiptModal({ order, onClose }) {
-  const { contentRef, paper, setPaper, print } = usePrintReceipt(order.order_number)
+  const { contentRef, paper, setPaper, print } = usePrintReceipt(billNumber(order).replaceAll('/', '-'))
 
   return (
     <Modal
       open
       size="md"
-      title={`Receipt · ${order.order_number}`}
+      title={`Receipt · ${billNumber(order)}`}
       onClose={onClose}
       footer={
         <>

@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { History, PackagePlus, Pencil, Plus, Search } from 'lucide-react'
-import { adjustStock, createProduct, getLowStock, getProducts, getStockMovements, updateProduct } from '../api'
+import { History, PackagePlus, Pencil, Plus, Search, Warehouse } from 'lucide-react'
+import { adjustStock, createProduct, getLowStock, getProductStores, getProducts, getStockMovements, updateProduct } from '../api'
 import { parseApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useToast } from '../components/Toast'
 import { Alert, Badge, Button, Card, EmptyState, Field, Modal, PageHeader, Spinner, inputClass } from '../components/ui'
 import { formatINR } from '../lib/money'
+import { UNITS } from '../lib/units'
 
 const refreshBell = () => window.dispatchEvent(new Event('store:refresh-notifications'))
 
 export default function Inventory() {
-  const { can } = useAuth()
+  const { can, currentStore, isAllStores, stores } = useAuth()
+  // Stock changes belong to one store, so they need a store picked in the header.
+  const canAdjust = can('stock.adjust') && !isAllStores
   const toast = useToast()
   const [params, setParams] = useSearchParams()
   const filter = params.get('filter') === 'low' ? 'low' : 'all'
@@ -25,6 +28,7 @@ export default function Inventory() {
   const [editing, setEditing] = useState(null) // product | 'new' | null
   const [adjusting, setAdjusting] = useState(null)
   const [historyFor, setHistoryFor] = useState(null)
+  const [storesFor, setStoresFor] = useState(null)
 
   const load = useCallback(() => {
     const request =
@@ -47,20 +51,30 @@ export default function Inventory() {
   // Deep link from the dashboard / notifications: /inventory?restock=<id>
   const restockId = params.get('restock')
   useEffect(() => {
-    if (!restockId || !products || !can('stock.adjust')) return
+    if (!restockId || !products || !canAdjust) return
     const product = products.find((p) => String(p.id) === restockId)
     if (product) setAdjusting(product)
     setParams((p) => {
       p.delete('restock')
       return p
     }, { replace: true })
-  }, [restockId, products, can, setParams])
+  }, [restockId, products, canAdjust, setParams])
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!products) return []
-    return q ? products.filter((p) => p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q)) : products
+    return q
+      ? products.filter((p) =>
+          [p.name, p.code, p.category, p.hsn_code].some((v) => v && v.toLowerCase().includes(q)),
+        )
+      : products
   }, [products, search])
+
+  // Existing categories, offered as suggestions in the product form.
+  const categories = useMemo(
+    () => [...new Set((products ?? []).map((p) => p.category).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [products],
+  )
 
   function saved(message) {
     toast(message)
@@ -72,9 +86,15 @@ export default function Inventory() {
     <>
       <PageHeader
         title="Inventory"
-        description="Products, prices and stock levels. Every stock change is logged."
+        description={`Products, prices and stock levels${isAllStores ? ' across all stores' : currentStore ? ` at ${currentStore.name}` : ''}. Every stock change is logged.`}
         actions={can('products.manage') && <Button icon={Plus} onClick={() => setEditing('new')}>Add product</Button>}
       />
+
+      {isAllStores && can('stock.adjust') && (
+        <div className="mb-4">
+          <Alert tone="info">Showing total stock of all stores. Select a store in the header to restock or correct stock.</Alert>
+        </div>
+      )}
 
       <Card padded={false}>
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
@@ -112,7 +132,7 @@ export default function Inventory() {
 
           <div className="relative ml-auto w-full sm:w-64">
             <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className={`${inputClass} pl-9`} placeholder="Search name or code" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className={`${inputClass} pl-9`} placeholder="Search name, code, category, HSN" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
         </div>
 
@@ -126,13 +146,14 @@ export default function Inventory() {
 
         {rows.length > 0 && (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   <th className="px-5 py-3">Product</th>
+                  <th className="px-5 py-3">Category</th>
                   <th className="px-5 py-3 text-right">Price</th>
                   <th className="px-5 py-3 text-right">Tax</th>
-                  <th className="px-5 py-3 text-right">Stock</th>
+                  <th className="px-5 py-3 text-right">{isAllStores ? 'Stock (all stores)' : 'Stock'}</th>
                   <th className="px-5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
@@ -141,20 +162,39 @@ export default function Inventory() {
                   <tr key={p.id} className="hover:bg-slate-50/60">
                     <td className="px-5 py-3">
                       <p className="font-medium text-slate-800">{p.name}</p>
-                      <p className="font-mono text-xs text-slate-500">{p.code}</p>
+                      <p className="font-mono text-xs text-slate-500">
+                        {p.code}
+                        {p.hsn_code && <span className="ml-2 font-sans text-slate-400">HSN {p.hsn_code}</span>}
+                      </p>
                     </td>
-                    <td className="px-5 py-3 text-right tabular-nums">{formatINR(p.price)}</td>
+                    <td className="px-5 py-3 text-slate-600">{p.category || <span className="text-slate-400">-</span>}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">
+                      {formatINR(p.price)}
+                      {p.unit && p.unit !== 'pcs' && <span className="text-xs text-slate-400"> / {p.unit}</span>}
+                    </td>
                     <td className="px-5 py-3 text-right text-slate-500">{Number(p.tax_percent)}%</td>
                     <td className="px-5 py-3 text-right"><StockBadge stock={p.stock} /></td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end gap-1">
                         {can('stock.adjust') && (
-                          <Button variant="secondary" size="sm" icon={PackagePlus} onClick={() => setAdjusting(p)}>Stock</Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={PackagePlus}
+                            onClick={() => setAdjusting(p)}
+                            disabled={!canAdjust}
+                            title={canAdjust ? 'Restock or correct stock' : 'Select a store in the header to change stock'}
+                          >
+                            Stock
+                          </Button>
                         )}
                         {can('products.manage') && (
                           <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditing(p)} aria-label={`Edit ${p.name}`} />
                         )}
-                        <Button variant="ghost" size="sm" icon={History} onClick={() => setHistoryFor(p)} aria-label={`Stock history for ${p.name}`} />
+                        {stores.length > 1 && (
+                          <Button variant="ghost" size="sm" icon={Warehouse} onClick={() => setStoresFor(p)} aria-label={`Stock by store for ${p.name}`} title="Stock by store" />
+                        )}
+                        <Button variant="ghost" size="sm" icon={History} onClick={() => setHistoryFor(p)} aria-label={`Stock history for ${p.name}`} title="Stock history" />
                       </div>
                     </td>
                   </tr>
@@ -168,6 +208,8 @@ export default function Inventory() {
       {editing && (
         <ProductModal
           product={editing === 'new' ? null : editing}
+          categories={categories}
+          storeName={isAllStores ? null : currentStore?.name}
           onClose={() => setEditing(null)}
           onSaved={(p, isNew) => {
             setEditing(null)
@@ -186,6 +228,7 @@ export default function Inventory() {
         />
       )}
       {historyFor && <HistoryModal product={historyFor} onClose={() => setHistoryFor(null)} />}
+      {storesFor && <StoresStockModal product={storesFor} onClose={() => setStoresFor(null)} />}
     </>
   )
 }
@@ -196,12 +239,16 @@ function StockBadge({ stock }) {
   return <span className="font-medium tabular-nums text-slate-800">{stock}</span>
 }
 
-function ProductModal({ product, onClose, onSaved }) {
+function ProductModal({ product, categories, storeName, onClose, onSaved }) {
   const isNew = product === null
   const [form, setForm] = useState({
     name: product?.name ?? '',
     code: product?.code ?? '',
+    hsn_code: product?.hsn_code ?? '',
+    category: product?.category ?? '',
+    unit: product?.unit ?? 'pcs',
     price: product?.price ?? '',
+    cost_price: product?.cost_price ?? '',
     tax_percent: product ? Number(product.tax_percent) : 0,
     stock: 0,
   })
@@ -215,7 +262,14 @@ function ProductModal({ product, onClose, onSaved }) {
     setSaving(true)
     setError(null)
     try {
-      const { stock, ...details } = form
+      const { stock, ...rest } = form
+      // Optional fields go as null when left empty.
+      const details = {
+        ...rest,
+        hsn_code: rest.hsn_code.trim() || null,
+        category: rest.category.trim() || null,
+        cost_price: rest.cost_price === '' ? null : rest.cost_price,
+      }
       const saved = isNew ? await createProduct({ ...details, stock: Number(stock) }) : await updateProduct(product.id, details)
       onSaved(saved, isNew)
     } catch (err) {
@@ -244,8 +298,33 @@ function ProductModal({ product, onClose, onSaved }) {
         <Field label="Code (SKU)" error={fieldError('code')} hint="Unique, e.g. AMUL-BUT-100">
           <input className={`${inputClass} font-mono uppercase`} value={form.code} onChange={set('code')} />
         </Field>
-        <Field label="Price per unit (₹)" error={fieldError('price')}>
+        <Field label="HSN code" error={fieldError('hsn_code')} hint="Optional, 4 to 8 digits.">
+          <input
+            className={`${inputClass} font-mono`}
+            value={form.hsn_code}
+            inputMode="numeric"
+            maxLength={8}
+            onChange={(e) => setForm((f) => ({ ...f, hsn_code: e.target.value.replace(/\D/g, '') }))}
+          />
+        </Field>
+        <Field label="Category" error={fieldError('category')}>
+          <input className={inputClass} value={form.category} onChange={set('category')} list="product-categories" placeholder="e.g. Dairy" />
+          <datalist id="product-categories">
+            {categories.map((c) => <option key={c} value={c} />)}
+          </datalist>
+        </Field>
+        <Field label="Unit" error={fieldError('unit')}>
+          <select className={inputClass} value={form.unit} onChange={set('unit')}>
+            {/* Keep an older value that is not in the list. */}
+            {!UNITS.includes(form.unit) && <option value={form.unit}>{form.unit}</option>}
+            {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+        </Field>
+        <Field label="Selling price per unit (₹)" error={fieldError('price')}>
           <input type="number" min="0" step="0.01" className={inputClass} value={form.price} onChange={set('price')} />
+        </Field>
+        <Field label="Cost price (₹)" error={fieldError('cost_price')} hint="Optional, what you pay the supplier.">
+          <input type="number" min="0" step="0.01" className={inputClass} value={form.cost_price} onChange={set('cost_price')} />
         </Field>
         <Field label="Tax (GST %)" error={fieldError('tax_percent')}>
           <select className={inputClass} value={form.tax_percent} onChange={set('tax_percent')}>
@@ -253,8 +332,12 @@ function ProductModal({ product, onClose, onSaved }) {
           </select>
         </Field>
         {isNew ? (
-          <Field label="Opening stock" error={fieldError('stock')}>
-            <input type="number" min="0" className={inputClass} value={form.stock} onChange={set('stock')} />
+          <Field
+            label="Opening stock"
+            error={fieldError('stock')}
+            hint={storeName ? `Goes into ${storeName}.` : 'Select a store in the header to add opening stock.'}
+          >
+            <input type="number" min="0" className={inputClass} value={form.stock} onChange={set('stock')} disabled={!storeName} />
           </Field>
         ) : (
           <div className="self-end text-xs text-slate-500">Change stock with the <b>Stock</b> button so it's logged.</div>
@@ -373,11 +456,12 @@ function HistoryModal({ product, onClose }) {
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-slate-500">
                   <th className="py-2">When</th>
                   <th className="py-2">Type</th>
+                  <th className="py-2">Store</th>
                   <th className="py-2 text-right">Change</th>
                   <th className="py-2 text-right">After</th>
                   <th className="py-2 pl-4">By / note</th>
@@ -387,7 +471,8 @@ function HistoryModal({ product, onClose }) {
                 {result.data.map((m) => (
                   <tr key={m.id}>
                     <td className="py-2 text-slate-500">{new Date(m.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                    <td className="py-2"><Badge tone={TYPE_TONES[m.type]}>{m.type}</Badge></td>
+                    <td className="py-2"><Badge tone={TYPE_TONES[m.type]}>{m.type.replace(/_/g, ' ')}</Badge></td>
+                    <td className="py-2 text-slate-600">{m.store ?? '-'}</td>
                     <td className={`py-2 text-right font-medium tabular-nums ${m.quantity > 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
                       {m.quantity > 0 ? `+${m.quantity}` : m.quantity}
                     </td>
@@ -409,6 +494,56 @@ function HistoryModal({ product, onClose }) {
             </div>
           )}
         </>
+      )}
+    </Modal>
+  )
+}
+
+/** Stock of one product in each store the user can see. */
+function StoresStockModal({ product, onClose }) {
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getProductStores(product.id)
+      .then((res) => !cancelled && setResult(res))
+      .catch((e) => !cancelled && setError(parseApiError(e).message))
+    return () => {
+      cancelled = true
+    }
+  }, [product.id])
+
+  return (
+    <Modal open size="sm" title={`Stock by store · ${product.name}`} onClose={onClose}>
+      {error && <Alert>{error}</Alert>}
+      {!result && !error && <div className="grid place-items-center py-10 text-slate-400"><Spinner /></div>}
+      {result && (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs uppercase text-slate-500">
+              <th className="py-2">Store</th>
+              <th className="py-2 text-right">Stock</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {result.data.map((row) => (
+              <tr key={row.store_id}>
+                <td className="py-2">
+                  <span className="font-medium text-slate-800">{row.store_name}</span>
+                  <span className="ml-2 font-mono text-xs text-slate-400">{row.store_code}</span>
+                </td>
+                <td className="py-2 text-right"><StockBadge stock={row.stock} /></td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-slate-200 font-semibold text-slate-900">
+              <td className="py-2">Total</td>
+              <td className="py-2 text-right tabular-nums">{result.meta.total}</td>
+            </tr>
+          </tfoot>
+        </table>
       )}
     </Modal>
   )

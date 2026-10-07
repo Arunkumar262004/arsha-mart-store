@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
+use App\Http\Resources\StoreResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -55,13 +56,20 @@ class AuthController extends Controller
     }
 
     /**
-     * @return array{user: UserResource, permissions: list<string>}
+     * The user, their permissions, the stores they may switch to and whether
+     * they may pick "All stores" (users tied to one store cannot).
+     *
+     * @return array<string, mixed>
      */
     private function profile(User $user): array
     {
+        $user->loadMissing('store');
+
         return [
             'user' => UserResource::make($user),
             'permissions' => $user->permissions(),
+            'stores' => StoreResource::collection($user->accessibleStores()),
+            'all_stores' => $user->worksInAllStores(),
         ];
     }
 }

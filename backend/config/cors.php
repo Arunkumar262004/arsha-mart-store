@@ -31,7 +31,8 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With'],
+    // X-Store-Id: the store picked in the header's store switcher.
+    'allowed_headers' => ['Content-Type', 'Accept', 'Authorization', 'X-Requested-With', 'X-Store-Id'],
 
     // Lets the React app read the file name of a report download.
     'exposed_headers' => ['Content-Disposition'],

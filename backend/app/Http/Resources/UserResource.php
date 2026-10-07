@@ -29,6 +29,13 @@ class UserResource extends JsonResource
                 'name' => $this->role->name,
                 'is_admin' => $this->role->is_admin,
             ] : null),
+            // null = works in every store
+            'store_id' => $this->store_id,
+            'store' => $this->whenLoaded('store', fn () => $this->store ? [
+                'id' => $this->store->id,
+                'name' => $this->store->name,
+                'code' => $this->store->code,
+            ] : null),
             'last_login_at' => $this->last_login_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

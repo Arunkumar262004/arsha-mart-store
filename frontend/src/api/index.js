@@ -3,9 +3,11 @@ import client from './client'
 const data = (r) => r.data.data
 
 // Auth & profile
-export const login = (email, password) => client.post('/login', { email, password, device_name: 'web' }).then((r) => r.data)
-export const logout = () => client.post('/logout')
-export const getMe = () => client.get('/me').then((r) => r.data)
+// login and /me resolve with { user, permissions, stores, all_stores } (+ token for login).
+export const login = (email, password) =>
+  client.post('/login', { email, password, device_name: 'web' }, { skipStore: true }).then((r) => r.data)
+export const logout = () => client.post('/logout', null, { skipStore: true })
+export const getMe = () => client.get('/me', { skipStore: true }).then((r) => r.data)
 export const changePassword = (payload) => client.put('/me/password', payload).then((r) => r.data)
 /** Update your own name; resolves with the updated user. */
 export const updateProfile = (payload) => client.put('/me', payload).then(data)
@@ -17,6 +19,18 @@ export const uploadAvatar = (file) => {
   return client.post('/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(data)
 }
 export const removeAvatar = () => client.delete('/me/avatar').then(data)
+
+// Company branding (name, logo, favicon). Reading it needs no login.
+export const getBranding = () => client.get('/branding', { skipStore: true }).then(data)
+/** Admin: { company_name, tagline, logo?: File, favicon?: File, remove_logo?, remove_favicon? } */
+export const saveCompany = (fields) => {
+  const form = new FormData()
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value === undefined || value === null) return
+    form.append(key, typeof value === 'boolean' ? (value ? '1' : '0') : value)
+  })
+  return client.post('/settings/company', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(data)
+}
 
 // Dashboard & notifications
 export const getDashboard = () => client.get('/dashboard').then((r) => r.data)
@@ -67,3 +81,14 @@ export const getPermissionCatalog = () => client.get('/permissions').then(data)
 export const createRole = (payload) => client.post('/roles', payload).then(data)
 export const updateRole = (id, payload) => client.put(`/roles/${id}`, payload).then(data)
 export const deleteRole = (id) => client.delete(`/roles/${id}`)
+
+// Stores
+/** Active stores the signed-in user may switch to. */
+export const getStores = () => client.get('/stores').then(data)
+/** Every store incl. inactive ones, with users_count (admin). */
+export const getAllStores = () => client.get('/stores/all').then(data)
+export const createStore = (payload) => client.post('/stores', payload).then(data)
+export const updateStore = (id, payload) => client.put(`/stores/${id}`, payload).then(data)
+export const deleteStore = (id) => client.delete(`/stores/${id}`)
+/** Stock of one product in every store: { data: [{ store_id, store_name, store_code, stock }], meta: { total } }. */
+export const getProductStores = (id) => client.get(`/products/${id}/stores`).then((r) => r.data)

@@ -22,6 +22,13 @@ class CustomerResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'phone' => $this->phone,
+            // B2B details, filled from the last GST bill.
+            'gstin' => $this->gstin,
+            'address' => $this->address,
+            'city' => $this->city,
+            'state' => $this->state,
+            'state_code' => $this->state_code,
+            'pincode' => $this->pincode,
         ];
     }
 }

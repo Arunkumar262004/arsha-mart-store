@@ -33,9 +33,35 @@ export const tokenStore = {
   },
 }
 
+const STORE_KEY = 'store_billing_store'
+
+/** The selected store: a store id (as a string) or 'all'; null = let the server pick. */
+export const storeSelection = {
+  get: () => {
+    try {
+      return localStorage.getItem(STORE_KEY)
+    } catch {
+      return null
+    }
+  },
+  set: (value) => {
+    try {
+      if (value == null || value === '') localStorage.removeItem(STORE_KEY)
+      else localStorage.setItem(STORE_KEY, String(value))
+    } catch {
+      /* storage unavailable: the server falls back to the user's store */
+    }
+  },
+}
+
 client.interceptors.request.use((config) => {
   const token = tokenStore.get()
   if (token) config.headers.Authorization = `Bearer ${token}`
+  // Every request says which store it is for (the server forces users tied
+  // to one store back to it regardless).
+  const store = storeSelection.get()
+  // `skipStore` (login, /me) avoids a stale saved id failing the session restore.
+  if (store && !config.skipStore && config.headers['X-Store-Id'] === undefined) config.headers['X-Store-Id'] = store
   return config
 })
 

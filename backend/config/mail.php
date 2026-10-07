@@ -113,7 +113,7 @@ return [
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         // Hosting dashboards don't expand "${APP_NAME}" like .env does, so fall back to the app name.
-        'name' => (static fn ($name) => $name && ! str_contains($name, '${') ? $name : (env('APP_NAME') ?: 'Arsha Mart'))(env('MAIL_FROM_NAME')),
+        'name' => (static fn ($name) => $name && ! str_contains($name, '${') ? $name : (env('APP_NAME') ?: 'Inofex Retail'))(env('MAIL_FROM_NAME')),
     ],
 
 ];

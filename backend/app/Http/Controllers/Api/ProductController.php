@@ -18,7 +18,7 @@ class ProductController extends Controller
 {
     public function index(): AnonymousResourceCollection
     {
-        return ProductResource::collection(Product::orderBy('name')->get());
+        return ProductResource::collection(Product::withStock()->orderBy('name')->get());
     }
 
     public function lowStock(LowStockRequest $request): AnonymousResourceCollection
@@ -26,12 +26,13 @@ class ProductController extends Controller
         $threshold = $request->threshold();
 
         return ProductResource::collection(
-            Product::belowStock($threshold)->orderBy('stock')->orderBy('name')->get()
+            Product::withStock()->belowStock($threshold)->orderBy('stock')->orderBy('name')->get()
         )->additional(['meta' => ['threshold' => $threshold]]);
     }
 
     /**
-     * Add a product; its opening stock is logged as the first movement.
+     * Add a product; its opening stock goes into the current store and is
+     * logged as the first movement.
      */
     public function store(SaveProductRequest $request, StockService $stock): JsonResponse
     {

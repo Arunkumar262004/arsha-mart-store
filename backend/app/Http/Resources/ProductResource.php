@@ -21,8 +21,13 @@ class ProductResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'code' => $this->code,
+            'hsn_code' => $this->hsn_code,
+            'category' => $this->category,
+            'unit' => $this->unit,
             'price' => $this->price,
+            'cost_price' => $this->cost_price,
             'tax_percent' => $this->tax_percent,
+            // Current store (or every store in "all stores" mode).
             'stock' => $this->stock,
         ];
     }

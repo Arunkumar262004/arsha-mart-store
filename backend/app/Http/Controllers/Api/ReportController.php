@@ -9,12 +9,14 @@ use App\Http\Resources\StockMovementResource;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\StockMovement;
+use App\Models\Store;
 use App\Models\User;
 use App\Services\ReportExport;
 use App\Services\ReportPdf;
 use App\Services\ReportService;
 use App\Services\ReportSpreadsheet;
 use App\Support\ReportPeriod;
+use App\Support\StoreContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\URL;
@@ -133,6 +135,8 @@ class ReportController extends Controller
             'report' => $report,
             'format' => $format,
             'by' => $request->user()->id,
+            // The store being viewed, so the phone gets the same report.
+            'store' => app(StoreContext::class)->scopeId() ?? 'all',
             ...$request->safe()->only(['period', 'from', 'to', 'employee_id', 'search', 'type']),
         ], fn ($value) => $value !== null && $value !== '');
 
@@ -159,6 +163,10 @@ class ReportController extends Controller
     {
         $user = User::find($request->integer('by'));
         abort_unless($user?->is_active && $user->hasPermission('reports.view'), 403, 'This link is no longer valid.');
+
+        $store = $request->query('store') === 'all' ? null : Store::find($request->integer('store'));
+        abort_unless($store ? $user->canAccessStore($store) : $user->worksInAllStores(), 403, 'This link is no longer valid.');
+        app(StoreContext::class)->set($store ?? Store::main(), all: $store === null);
 
         return $this->download($request, $report, $export);
     }

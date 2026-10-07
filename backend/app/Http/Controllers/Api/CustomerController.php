@@ -7,6 +7,7 @@ use App\Http\Requests\CustomerLookupRequest;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\OrderResource;
 use App\Models\Customer;
+use App\Support\StoreContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
@@ -43,7 +44,8 @@ class CustomerController extends Controller
         abort_if($customer === null, 404, 'No customer found with that email.');
 
         $orders = $customer->orders()
-            ->with(['items.product', 'cashier'])
+            ->when(app(StoreContext::class)->scopeId(), fn ($q, int $id) => $q->where('store_id', $id))
+            ->with(['items.product', 'cashier', 'store'])
             ->latest()
             ->latest('id')
             ->paginate($request->integer('per_page', 10))

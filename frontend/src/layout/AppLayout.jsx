@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ChevronDown, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react'
-import logo from '../assets/billing.png'
+import { useBranding } from '../branding/BrandingContext'
 import { useAuth } from '../auth/AuthContext'
 import FullscreenToggle from './FullscreenToggle'
 import NotificationBell from './NotificationBell'
+import StoreSwitcher from './StoreSwitcher'
 import UserMenu from './UserMenu'
 import { isWithin, titleFor, visibleNav } from './navigation'
 
@@ -29,7 +30,8 @@ const readMenus = () => {
 }
 
 export default function AppLayout() {
-  const { can } = useAuth()
+  const { can, currentStore, isAllStores, selection } = useAuth()
+  const { name: companyName, mark: logo } = useBranding()
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(readCollapsed) // desktop
   const [mobileOpenAt, setMobileOpenAt] = useState(null) // pathname the drawer was opened on
@@ -111,7 +113,12 @@ export default function AppLayout() {
             </button>
           )}
           <img src={logo} alt="" className={`h-9 w-9 shrink-0 object-contain ${collapsed ? 'lg:hidden' : ''}`} />
-          <span className={`truncate text-base font-semibold text-slate-900 ${collapsed ? 'lg:hidden' : ''}`}>Arsha Mart</span>
+          <span className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
+            <span className="block truncate text-base font-semibold leading-tight text-slate-900">{companyName}</span>
+            {(currentStore || isAllStores) && (
+              <span className="block truncate text-xs leading-tight text-slate-500">{isAllStores ? 'All stores' : currentStore.name}</span>
+            )}
+          </span>
           <button
             onClick={() => setCollapsed((c) => !c)}
             className="absolute -right-3.5 top-[18px] z-10 hidden h-7 w-7 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-md transition hover:border-brand-300 hover:bg-brand-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 lg:grid"
@@ -176,14 +183,19 @@ export default function AppLayout() {
           </button>
           <h1 className="truncate text-base font-semibold text-slate-900">{titleFor(location.pathname)}</h1>
           <div className="ml-auto flex items-center gap-2">
+            <StoreSwitcher />
             <FullscreenToggle />
-            <NotificationBell />
+            {/* Keyed like the page: stock alerts belong to the selected store. */}
+            <NotificationBell key={selection ?? 'none'} />
             <UserMenu />
           </div>
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-          <Outlet />
+          {/* Keyed by the store so switching remounts the page and it refetches. */}
+          <div key={selection ?? 'none'}>
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

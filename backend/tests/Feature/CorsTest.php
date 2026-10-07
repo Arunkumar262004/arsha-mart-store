@@ -18,6 +18,19 @@ class CorsTest extends TestCase
             ->assertHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
     }
 
+    public function testTheStoreSwitcherHeaderIsAllowed(): void
+    {
+        config(['cors.allowed_origins' => ['http://localhost:5173']]);
+
+        $allowed = $this->call('OPTIONS', '/api/dashboard', server: [
+            'HTTP_ORIGIN' => 'http://localhost:5173',
+            'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'GET',
+            'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'authorization,x-store-id',
+        ])->assertNoContent()->headers->get('Access-Control-Allow-Headers');
+
+        $this->assertStringContainsString('x-store-id', strtolower($allowed));
+    }
+
     public function testUnknownOriginsAreNotAllowed(): void
     {
         config(['cors.allowed_origins' => ['http://localhost:5173']]);

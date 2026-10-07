@@ -8,6 +8,9 @@ import CustomerUpdateDialog from '../components/CustomerUpdateDialog'
 import { Alert, Badge, Button, Card, Field, Spinner, inputClass } from '../components/ui'
 import { useAuth } from '../auth/AuthContext'
 import useCustomerLookup from '../hooks/useCustomerLookup'
+import ProductPicker from '../components/ProductPicker'
+import { PAYMENT_MODES } from '../components/receipt/paymentModes'
+import BusinessCustomerSection, { EMPTY_B2B, TaxInvoiceOffer, b2bPayload } from '../components/documents/BusinessCustomerSection'
 import { changeBreakdown, formatINR, taxOn, toCents } from '../lib/money'
 
 let nextKey = 1
@@ -17,7 +20,7 @@ const newLine = () => ({ key: nextKey++, productId: '', quantity: 1 })
 const STORE_STATE = import.meta.env.VITE_STORE_STATE ?? 'Tamil Nadu'
 
 export default function NewOrder() {
-  const { can } = useAuth()
+  const { can, currentStore, isAllStores } = useAuth()
   const [products, setProducts] = useState([])
   const [loadError, setLoadError] = useState(null)
 
@@ -25,7 +28,10 @@ export default function NewOrder() {
 
   const [lines, setLines] = useState([newLine()])
   const [amountGiven, setAmountGiven] = useState('')
+  const [paymentMode, setPaymentMode] = useState('cash') // cash | card | upi | credit (pay later)
+  const isCredit = paymentMode === 'credit'
   const [interstate, setInterstate] = useState(false) // customer outside the store's state: IGST
+  const [b2b, setB2b] = useState(EMPTY_B2B) // optional GSTIN / billing address / place of supply
 
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState(null) // { message, errors }
@@ -85,7 +91,9 @@ export default function NewOrder() {
     customer.reset()
     setLines([newLine()])
     setAmountGiven('')
+    setPaymentMode('cash')
     setInterstate(false)
+    setB2b(EMPTY_B2B)
     setError(null)
     setOrder(null)
   }
@@ -122,8 +130,11 @@ export default function NewOrder() {
         customer_name: customer.name.trim() || null,
         customer_phone: customer.phone.trim() || null,
         items: lines.map((l) => ({ product_id: Number(l.productId), quantity: Number(l.quantity) })),
-        amount_paid: amountGiven === '' ? null : Number(amountGiven),
+        // Credit bills are paid later, so no amount is taken now.
+        amount_paid: isCredit || amountGiven === '' ? null : Number(amountGiven),
+        payment_mode: paymentMode,
         interstate,
+        ...b2bPayload(b2b),
         ...override,
       })
       setOrder(created)
@@ -146,7 +157,12 @@ export default function NewOrder() {
   }
 
   if (order) {
-    return <Bill order={order} onNewOrder={resetForm} />
+    return (
+      <>
+        <TaxInvoiceOffer order={order} />
+        <Bill order={order} onNewOrder={resetForm} />
+      </>
+    )
   }
 
   const selectedIds = new Set(lines.map((l) => String(l.productId)).filter(Boolean))
@@ -155,6 +171,16 @@ export default function NewOrder() {
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
       <div className="min-w-0 space-y-6">
+        {isAllStores ? (
+          <Alert tone="warning">You are viewing all stores. Select a store in the header to create bills.</Alert>
+        ) : (
+          currentStore && (
+            <p className="text-sm text-slate-500">
+              Billing at <b className="font-medium text-slate-800">{currentStore.name}</b>
+              {currentStore.gstin && <span className="text-slate-400"> · GSTIN {currentStore.gstin}</span>}
+            </p>
+          )
+        )}
         {loadError && <Alert>{loadError}</Alert>}
         {error && <Alert>{error.message}</Alert>}
 
@@ -208,6 +234,15 @@ export default function NewOrder() {
           )}
         </Card>
 
+        <BusinessCustomerSection
+          b2b={b2b}
+          setB2b={setB2b}
+          match={customer.match}
+          storeStateCode={currentStore?.state_code}
+          setInterstate={setInterstate}
+          fieldError={fieldError}
+        />
+
         <Card
           padded={false}
           className="@container"
@@ -259,23 +294,15 @@ export default function NewOrder() {
                   <span className="hidden pt-2.5 text-xs tabular-nums text-slate-400 @2xl:block">{i + 1}</span>
 
                   <div className="min-w-0">
-                    <select
-                      className={inputClass}
+                    <ProductPicker
+                      products={products}
                       value={line.productId}
-                      onChange={(e) => updateLine(line.key, { productId: e.target.value })}
-                      aria-label={`Product for row ${i + 1}`}
-                    >
-                      <option value="">Select a product…</option>
-                      {products.map((p) => (
-                        <option
-                          key={p.id}
-                          value={p.id}
-                          disabled={p.stock === 0 || (selectedIds.has(String(p.id)) && String(p.id) !== String(line.productId))}
-                        >
-                          {p.name} ({p.stock === 0 ? 'out of stock' : `${p.stock} left`})
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(productId) => updateLine(line.key, { productId })}
+                      describe={(p) => (p.stock === 0 ? 'out of stock' : `${p.stock} left`)}
+                      isDisabled={(p) => p.stock === 0 || (selectedIds.has(String(p.id)) && String(p.id) !== String(line.productId))}
+                      ariaLabel={`Product for row ${i + 1}`}
+                      invalid={Boolean(rowError)}
+                    />
                     {rowError && <p className="mt-1 text-xs text-red-600">{rowError}</p>}
                   </div>
 
@@ -364,6 +391,33 @@ export default function NewOrder() {
             </div>
 
             <div className="mt-5">
+              <span className="mb-1.5 block text-xs font-medium text-slate-600">Payment</span>
+              <div className="grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1 text-sm sm:grid-cols-4" role="radiogroup" aria-label="Payment mode">
+                {PAYMENT_MODES.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={paymentMode === m.value}
+                    onClick={() => {
+                      setPaymentMode(m.value)
+                      if (m.value === 'credit') setAmountGiven('')
+                    }}
+                    className={`rounded-md px-2 py-1.5 font-medium transition ${paymentMode === m.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+                  >
+                    {m.value === 'credit' ? 'Credit' : m.label}
+                  </button>
+                ))}
+              </div>
+              {fieldError('payment_mode') && <p className="mt-1 text-xs text-red-600">{fieldError('payment_mode')}</p>}
+              {isCredit && (
+                <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Pay later: the full amount is added to the customer's account balance.
+                </p>
+              )}
+            </div>
+
+            <div className={isCredit ? 'hidden' : 'mt-5'}>
               <Field label="Amount given by customer" hint="Optional: shows the change to return" error={fieldError('amount_paid')}>
                 <div className="relative">
                   <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">₹</span>
@@ -387,7 +441,7 @@ export default function NewOrder() {
               size="lg"
               icon={ReceiptText}
               loading={submitting}
-              disabled={products.length === 0 || filledLines === 0}
+              disabled={products.length === 0 || filledLines === 0 || isAllStores}
               className="mt-5 w-full"
             >
               Generate bill

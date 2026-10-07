@@ -15,7 +15,7 @@ services:
     envVars:
       # App
       - key: APP_NAME
-        value: Arsha Mart
+        value: Inofex Retail
       - key: APP_ENV
         value: production
       - key: APP_DEBUG

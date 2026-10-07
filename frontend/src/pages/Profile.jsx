@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext'
 import Avatar from '../components/Avatar'
 import { useToast } from '../components/Toast'
 import { Alert, Badge, Button, Card, Field, PageHeader, inputClass } from '../components/ui'
+import { useConfirm } from '../components/ConfirmDialog'
 
 export default function Profile() {
   const { user, permissions } = useAuth()
@@ -45,6 +46,15 @@ export default function Profile() {
               <dt className="text-slate-500">Role</dt>
               <dd>
                 <Badge tone={user.is_admin ? 'brand' : 'slate'}>{user.role?.name ?? 'None'}</Badge>
+              </dd>
+            </div>
+            <div className="flex justify-between gap-4 py-3">
+              <dt className="text-slate-500">Store</dt>
+              <dd className="text-right">
+                <span className="font-medium">{user.store?.name ?? 'All stores'}</span>
+                <span className="block text-xs text-slate-400">
+                  {user.store ? 'You work in this store only' : 'You can switch stores from the top bar'}
+                </span>
               </dd>
             </div>
             <div className="flex items-center justify-between gap-4 py-3">
@@ -146,6 +156,7 @@ const MAX_BYTES = 5 * 1024 * 1024
  * The header updates as soon as it's saved.
  */
 function PhotoCard() {
+  const confirm = useConfirm()
   const { user, updateUser } = useAuth()
   const toast = useToast()
   const input = useRef(null)
@@ -241,7 +252,7 @@ function PhotoCard() {
                     icon={Trash2}
                     loading={busy === 'remove'}
                     disabled={busy !== null}
-                    onClick={() => window.confirm('Remove your profile photo?') && run('remove', removeAvatar, 'Profile photo removed.')}
+                    onClick={async () => (await confirm({ title: 'Remove your profile photo?', message: 'Your initials are shown instead.', confirmLabel: 'Remove photo' })) && run('remove', removeAvatar, 'Profile photo removed.')}
                   >
                     Remove
                   </Button>

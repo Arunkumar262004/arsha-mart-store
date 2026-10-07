@@ -4,8 +4,10 @@ import { createRole, deleteRole, getPermissionCatalog, getRoles, updateRole } fr
 import { parseApiError } from '../../api/client'
 import { useToast } from '../../components/Toast'
 import { Alert, Badge, Button, Card, Field, Modal, PageHeader, Spinner, inputClass } from '../../components/ui'
+import { useConfirm } from '../../components/ConfirmDialog'
 
 export default function Roles() {
+  const confirm = useConfirm()
   const toast = useToast()
   const [roles, setRoles] = useState(null)
   const [catalog, setCatalog] = useState([])
@@ -26,7 +28,7 @@ export default function Roles() {
   const labelFor = (key) => catalog.flatMap((g) => g.permissions).find((p) => p.key === key)?.label ?? key
 
   async function remove(role) {
-    if (!window.confirm(`Delete the "${role.name}" role?`)) return
+    if (!(await confirm({ title: `Delete the "${role.name}" role?`, message: 'This cannot be undone.', confirmLabel: 'Delete role' }))) return
     try {
       await deleteRole(role.id)
       toast(`Role "${role.name}" deleted.`)

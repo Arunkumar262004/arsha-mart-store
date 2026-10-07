@@ -35,6 +35,8 @@ class UpdateUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->route('user'))],
             'role_id' => ['required', 'integer', 'exists:roles,id'],
+            // null = works in every store
+            'store_id' => ['sometimes', 'nullable', 'integer', 'exists:stores,id'],
             'is_active' => ['required', 'boolean'],
         ];
     }

@@ -56,6 +56,12 @@ export function AuthProvider({ children }) {
     setState(sessionFrom(profile))
   }, [])
 
+  const loginWithGoogle = useCallback(async (credential) => {
+    const { token, ...profile } = await api.loginWithGoogle(credential)
+    tokenStore.set(token)
+    setState(sessionFrom(profile))
+  }, [])
+
   const logout = useCallback(async () => {
     try {
       await api.logout()
@@ -91,6 +97,7 @@ export function AuthProvider({ children }) {
     return {
       ...state,
       login,
+      loginWithGoogle,
       logout,
       updateUser,
       can: (permission) => state.permissions.includes(permission),
@@ -104,7 +111,7 @@ export function AuthProvider({ children }) {
       setCurrentStore,
       refreshStores,
     }
-  }, [state, login, logout, updateUser, setCurrentStore, refreshStores])
+  }, [state, login, loginWithGoogle, logout, updateUser, setCurrentStore, refreshStores])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

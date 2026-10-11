@@ -6,6 +6,9 @@ const data = (r) => r.data.data
 // login and /me resolve with { user, permissions, stores, all_stores } (+ token for login).
 export const login = (email, password) =>
   client.post('/login', { email, password, device_name: 'web' }, { skipStore: true }).then((r) => r.data)
+/** "Sign in with Google" (admins only): trades Google's ID token for our API token. */
+export const loginWithGoogle = (credential) =>
+  client.post('/login/google', { credential, device_name: 'web' }, { skipStore: true }).then((r) => r.data)
 export const logout = () => client.post('/logout', null, { skipStore: true })
 export const getMe = () => client.get('/me', { skipStore: true }).then((r) => r.data)
 export const changePassword = (payload) => client.put('/me/password', payload).then((r) => r.data)

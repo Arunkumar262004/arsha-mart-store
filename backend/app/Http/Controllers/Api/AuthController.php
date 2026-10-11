@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -25,13 +26,52 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
         }
 
+        return $this->issueToken($user, $request->validated('device_name') ?? 'web');
+    }
+
+    /**
+     * "Sign in with Google" for admins: exchange a Google ID token (the
+     * credential from Google Identity Services) for a Sanctum API token.
+     * Only an existing, active admin with the same email may sign in.
+     */
+    public function google(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'credential' => ['required', 'string', 'max:4096'],
+            'device_name' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $clientId = config('services.google.client_id');
+        abort_if(blank($clientId), 503, 'Google sign-in is not configured.');
+
+        // Google checks the signature and expiry; we check it was issued to this app.
+        $claims = Http::timeout(10)->get('https://oauth2.googleapis.com/tokeninfo', ['id_token' => $data['credential']]);
+
+        if (! $claims->ok()
+            || $claims->json('aud') !== $clientId
+            || ! in_array($claims->json('iss'), ['accounts.google.com', 'https://accounts.google.com'], true)
+            || $claims->json('email_verified') !== 'true') {
+            throw ValidationException::withMessages(['email' => 'Google sign-in failed. Please try again.']);
+        }
+
+        $user = User::with('role.grants')->where('email', mb_strtolower($claims->json('email')))->first();
+
+        if (! $user?->isAdmin()) {
+            throw ValidationException::withMessages(['email' => 'Google sign-in is only for admins. Use your email and password.']);
+        }
+
+        return $this->issueToken($user, $data['device_name'] ?? 'web');
+    }
+
+    private function issueToken(User $user, string $deviceName): JsonResponse
+    {
         if (! $user->is_active) {
             throw ValidationException::withMessages(['email' => 'This account has been deactivated. Contact your admin.']);
         }
 
         $user->forceFill(['last_login_at' => now()])->save();
 
-        $token = $user->createToken($request->validated('device_name') ?? 'web')->plainTextToken;
+        $token = $user->createToken($deviceName)->plainTextToken;
 
         return response()->json(['token' => $token, ...$this->profile($user)]);
     }

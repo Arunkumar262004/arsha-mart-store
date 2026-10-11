@@ -4,6 +4,7 @@ import { useBranding } from '../branding/BrandingContext'
 import { parseApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Alert, Spinner } from '../components/ui'
+import GoogleSignInButton from '../components/GoogleSignInButton'
 
 const DEMO_ACCOUNTS = [
   { label: 'Admin', email: 'admin@store.com' },
@@ -23,7 +24,7 @@ const fieldClass =
 const labelClass = 'mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600'
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, loginWithGoogle } = useAuth()
   const { name: companyName, tagline, mark: logo } = useBranding()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,6 +38,17 @@ export default function Login() {
     setSubmitting(true)
     try {
       await login(email.trim(), password)
+    } catch (e) {
+      setError(parseApiError(e))
+      setSubmitting(false)
+    }
+  }
+
+  async function handleGoogle(credential) {
+    setError(null)
+    setSubmitting(true)
+    try {
+      await loginWithGoogle(credential)
     } catch (e) {
       setError(parseApiError(e))
       setSubmitting(false)
@@ -155,6 +167,17 @@ export default function Login() {
               Sign In
               {!submitting && <ArrowRight size={18} aria-hidden />}
             </button>
+
+            {import.meta.env.VITE_GOOGLE_CLIENT_ID && (
+              <>
+                <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  Admin
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+                <GoogleSignInButton onCredential={handleGoogle} onError={(e) => setError({ message: e.message })} />
+              </>
+            )}
 
             <p className="flex items-center justify-center gap-2 text-xs text-slate-400">
               <ShieldCheck size={14} aria-hidden />

@@ -44,6 +44,7 @@ final class Branding
      * - name: the registered business name, else the store name
      * - branch: the store name, when it differs from that name
      * - address block: the store's when it has an address, else the company's
+     * - state / state code: the store's when set, else from the address block
      * - phone, email, GSTIN: the store's, else the company's
      *
      * @return array<string, string|null>
@@ -56,14 +57,16 @@ final class Branding
         $name = $company['legal_name'] ?: ($store?->name ?? $company['company_name']);
         $address = filled($store?->address) ? $store : null;
         $pick = fn (string $field) => $address ? $address->{$field} : $company[$field];
-        $stateCode = $pick('state_code');
+        // GST state: the store's own when set (a branch in another state), else the company's.
+        $stateCode = $store?->state_code ?: $pick('state_code');
+        $state = $store?->state_code ? $store->state : $pick('state');
 
         return [
             'name' => $name,
             'branch' => $store && $store->name !== $name ? $store->name : null,
             'address' => $pick('address'),
             'city' => $pick('city'),
-            'state' => $pick('state') ?: GstStates::name($stateCode),
+            'state' => $state ?: GstStates::name($stateCode),
             'state_code' => $stateCode,
             'pincode' => $pick('pincode'),
             'phone' => $store?->phone ?: $company['phone'],

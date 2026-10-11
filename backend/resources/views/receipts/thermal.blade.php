@@ -1,6 +1,9 @@
 @php
     $money = fn ($value) => number_format((float) $value, 2);
-    $store = config('inventory.store');
+    $seller = \App\Support\Branding::seller($order->store);
+    $logo = \App\Support\Branding::all()['logo'];
+    $place = array_filter([$seller['city'], trim(($seller['state'] ?? '').(filled($seller['pincode']) ? ' - '.$seller['pincode'] : ''), ' -')]);
+    $address = implode(', ', array_filter([$seller['address'], ...$place]));
     $interstate = $order->is_interstate;
     $units = $order->items->sum('quantity');
 
@@ -31,6 +34,7 @@
         .bold { font-weight: bold; }
         .small { font-size: 7pt; }
         .store { font-size: 12pt; font-weight: bold; }
+        .logo { max-width: 110pt; max-height: 45pt; margin-bottom: 3pt; }
         .title { font-weight: bold; letter-spacing: 2pt; margin: 3pt 0; }
         .rule { border-top: 1px dashed #000; margin: 4pt 0; }
         .double { border-top: 3px double #000; margin: 4pt 0; }
@@ -42,10 +46,12 @@
 </head>
 <body>
     <div class="center">
-        <div class="store">{{ config('app.name') }}</div>
-        @if ($store['address']) <div class="small">{{ $store['address'] }}</div> @endif
-        @if ($store['phone']) <div class="small">Ph: {{ $store['phone'] }}</div> @endif
-        @if ($store['gstin']) <div class="small">GSTIN: {{ $store['gstin'] }}</div> @endif
+        @if ($logo) <img class="logo" src="{{ $logo }}" alt=""> @endif
+        <div class="store">{{ $seller['name'] }}</div>
+        @if ($seller['branch']) <div class="small">{{ $seller['branch'] }}</div> @endif
+        @if ($address) <div class="small">{{ $address }}</div> @endif
+        @if ($seller['phone']) <div class="small">Ph: {{ $seller['phone'] }}</div> @endif
+        @if ($seller['gstin']) <div class="small">GSTIN: {{ $seller['gstin'] }}</div> @endif
     </div>
 
     <div class="rule"></div>
@@ -57,7 +63,7 @@
         @if ($order->cashier) <tr><td>Cashier</td><td class="right">{{ $order->cashier->name }}</td></tr> @endif
         <tr><td>Customer</td><td class="right">{{ $order->customer->name }}</td></tr>
         @if ($order->customer->phone) <tr><td>Mobile</td><td class="right">{{ $order->customer->phone }}</td></tr> @endif
-        <tr><td>Supply</td><td class="right">{{ $interstate ? 'Inter-state (IGST)' : config('inventory.home_state').' (CGST+SGST)' }}</td></tr>
+        <tr><td>Supply</td><td class="right">{{ $interstate ? 'Inter-state (IGST)' : trim(($seller['state'] ?? '').' (CGST+SGST)') }}</td></tr>
     </table>
 
     <div class="rule"></div>

@@ -84,15 +84,7 @@ services:
       - key: DEFAULT_COUNTRY_CODE
         value: "91"
 
-      # Store details printed on bills
-      - key: STORE_STATE
-        value: Tamil Nadu
-      - key: STORE_ADDRESS
-        sync: false
-      - key: STORE_PHONE
-        sync: false
-      - key: STORE_GSTIN
-        sync: false
+      # Business name, address, GSTIN, logo and favicon are set in the app: Settings → Company
       - key: LOW_STOCK_THRESHOLD
         value: "10"
 

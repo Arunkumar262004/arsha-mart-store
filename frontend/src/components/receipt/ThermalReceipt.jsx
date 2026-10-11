@@ -1,24 +1,16 @@
 import { QRCodeSVG } from 'qrcode.react'
+import { useBranding } from '../../branding/BrandingContext'
 import { toCents } from '../../lib/money'
 import { billNumber, paymentLabel } from './paymentModes'
 import './receipt.css'
 
-// Fallback header for bills without store details (older API responses).
-const DEFAULT_STORE = {
-  name: import.meta.env.VITE_STORE_NAME ?? 'Inofex Retail',
-  address: import.meta.env.VITE_STORE_ADDRESS ?? '',
-  phone: import.meta.env.VITE_STORE_PHONE ?? '',
-  gstin: import.meta.env.VITE_STORE_GSTIN ?? '',
-}
-
 /**
  * Receipt header: the seller the API works out for the bill's store (company
- * legal details, or the store's own address / GSTIN), falling back to the
- * VITE_STORE_* values for old responses.
+ * legal details, or the store's own address / GSTIN), falling back to
+ * Settings → Company for bills without store details (older API responses).
  */
-function storeHeader(store) {
-  const seller = store?.seller ?? store
-  if (!seller?.name) return DEFAULT_STORE
+function storeHeader(store, company) {
+  const seller = store?.seller?.name ? store.seller : { ...company, name: company.legal_name || company.company_name }
   const place = [seller.city, seller.state && seller.pincode ? `${seller.state} - ${seller.pincode}` : seller.state || seller.pincode]
   return {
     name: seller.name,
@@ -59,12 +51,14 @@ export default function ThermalReceipt({ order, paper = '80', ref }) {
   const gst = gstSummary(order.items)
   const interstate = Boolean(order.is_interstate)
   const units = order.items.reduce((s, i) => s + i.quantity, 0)
-  const store = storeHeader(order.store)
+  const { details: company, uploadedLogo } = useBranding()
+  const store = storeHeader(order.store, company)
   const isCredit = order.payment_mode === 'credit'
 
   return (
     <div ref={ref} className={`rcpt ${paper === '58' ? 'rcpt--58' : ''}`}>
       <div className="rcpt-center">
+        {uploadedLogo && <img src={uploadedLogo} alt="" className="rcpt-logo" />}
         <div className="rcpt-store">{store.name}</div>
         {store.branch && <div className="rcpt-muted">{store.branch}</div>}
         {store.address && <div className="rcpt-muted">{store.address}</div>}

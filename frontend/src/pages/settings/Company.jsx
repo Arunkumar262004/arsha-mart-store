@@ -132,7 +132,7 @@ function CompanyForm() {
                 <input className={inputClass} maxLength={150} placeholder="Inofex Retail Private Limited" {...field('legal_name')} />
               </Field>
               <Field label="GSTIN" error={errors.gstin?.[0]}>
-                <input className={`${inputClass} uppercase`} maxLength={15} placeholder="33ABCDE1234F1Z5" {...field('gstin')}
+                <input className={`${inputClass} uppercase`} maxLength={15} placeholder="15-character GSTIN" {...field('gstin')}
                   onChange={(e) => {
                     const gstin = e.target.value.toUpperCase().replace(/\s+/g, '')
                     const code = gstinStateCode(gstin)
@@ -159,7 +159,7 @@ function CompanyForm() {
                 </select>
               </Field>
               <Field label="Phone" error={errors.phone?.[0]}>
-                <input className={inputClass} maxLength={20} placeholder="+91 98765 00000" {...field('phone')} />
+                <input className={inputClass} maxLength={20} placeholder="Phone number" {...field('phone')} />
               </Field>
               <Field label="Email" error={errors.email?.[0]}>
                 <input type="email" className={inputClass} maxLength={150} {...field('email')} />

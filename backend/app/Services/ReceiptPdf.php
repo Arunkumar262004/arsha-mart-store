@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Support\Branding;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
@@ -16,7 +17,7 @@ class ReceiptPdf
 
     public function render(Order $order): string
     {
-        $order->loadMissing(['customer', 'cashier', 'items.product']);
+        $order->loadMissing(['customer', 'cashier', 'items.product', 'store']);
 
         return Pdf::loadView('receipts.thermal', ['order' => $order])
             ->setPaper([0, 0, self::WIDTH_PT, $this->heightFor($order)])
@@ -39,7 +40,8 @@ class ReceiptPdf
         $rates = $order->items->pluck('tax_percent')->map(fn ($rate) => (float) $rate)->unique()->count();
 
         $cashLines = $order->amount_paid !== null ? 30 : 0;
+        $logo = filled(Branding::all()['logo']) ? 50 : 0;
 
-        return 400 + ($order->items->count() * 32) + ($rates * 12) + $cashLines;
+        return 400 + ($order->items->count() * 32) + ($rates * 12) + $cashLines + $logo;
     }
 }

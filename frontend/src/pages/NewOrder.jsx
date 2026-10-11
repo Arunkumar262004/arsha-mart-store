@@ -7,6 +7,7 @@ import { Plus, ReceiptText, Trash2, UserRoundPen } from 'lucide-react'
 import CustomerUpdateDialog from '../components/CustomerUpdateDialog'
 import { Alert, Badge, Button, Card, Field, Spinner, inputClass } from '../components/ui'
 import { useAuth } from '../auth/AuthContext'
+import { useBranding } from '../branding/BrandingContext'
 import useCustomerLookup from '../hooks/useCustomerLookup'
 import ProductPicker from '../components/ProductPicker'
 import { PAYMENT_MODES } from '../components/receipt/paymentModes'
@@ -17,10 +18,11 @@ let nextKey = 1
 const newLine = () => ({ key: nextKey++, productId: '', quantity: 1 })
 
 // Sales inside this state get CGST + SGST; customers elsewhere get IGST.
-const STORE_STATE = import.meta.env.VITE_STORE_STATE ?? 'Tamil Nadu'
 
 export default function NewOrder() {
   const { can, currentStore, isAllStores } = useAuth()
+  const { details: company } = useBranding()
+  const homeState = currentStore?.state || company.state
   const [products, setProducts] = useState([])
   const [loadError, setLoadError] = useState(null)
 
@@ -383,7 +385,7 @@ export default function NewOrder() {
                 checked={interstate}
                 onChange={(e) => setInterstate(e.target.checked)}
               />
-              Customer outside {STORE_STATE} (charge IGST)
+              Customer outside {homeState || 'your state'} (charge IGST)
             </label>
             <div className="mt-4 flex items-baseline justify-between rounded-xl bg-slate-900 px-4 py-3 text-white">
               <span className="text-sm text-slate-300">Grand total</span>

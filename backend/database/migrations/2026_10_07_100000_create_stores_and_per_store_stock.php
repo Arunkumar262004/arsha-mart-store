@@ -34,10 +34,6 @@ return new class extends Migration
         $mainStoreId = DB::table('stores')->insertGetId([
             'name' => 'Main Store',
             'code' => 'MAIN',
-            'gstin' => config('inventory.store.gstin') ?: null,
-            'phone' => config('inventory.store.phone') ?: null,
-            'address' => config('inventory.store.address') ?: null,
-            'state' => config('inventory.home_state') ?: null,
             'is_active' => true,
             'created_at' => now(),
             'updated_at' => now(),

@@ -17,28 +17,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Store State (GST)
-    |--------------------------------------------------------------------------
-    |
-    | Sales inside this state are taxed as CGST + SGST (half the rate each);
-    | sales to customers in another state are taxed as IGST (the full rate).
-    |
-    */
-
-    'home_state' => env('STORE_STATE', 'Tamil Nadu'),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Store Details (receipt header)
-    |--------------------------------------------------------------------------
-    |
-    | Printed at the top of the PDF bill sent by email and WhatsApp. Keep these
-    | in step with the VITE_STORE_* values used by the on-screen receipt.
-    |
-    */
-
-    /*
-    |--------------------------------------------------------------------------
     | Report QR Links
     |--------------------------------------------------------------------------
     |
@@ -53,12 +31,6 @@ return [
     'report_link_url' => env('REPORT_LINK_URL') ?: env('APP_URL', 'http://localhost:8000'),
 
     'report_link_minutes' => (int) env('REPORT_LINK_MINUTES', 30),
-
-    'store' => [
-        'address' => env('STORE_ADDRESS', ''),
-        'phone' => env('STORE_PHONE', ''),
-        'gstin' => env('STORE_GSTIN', ''),
-    ],
 
     /*
     |--------------------------------------------------------------------------

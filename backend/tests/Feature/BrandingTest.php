@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Order;
+use App\Models\Product;
 use App\Models\Store;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class BrandingTest extends TestCase
@@ -97,5 +100,38 @@ class BrandingTest extends TestCase
 
         $this->signIn(['reports.view']);
         $this->post('/api/settings/company', ['company_name' => 'X'], ['Accept' => 'application/json'])->assertForbidden();
+    }
+
+    public function testPdfBillPrintsTheCompanyDetailsAndLogoFromSettings(): void
+    {
+        Queue::fake();
+        $this->signIn();
+        $this->post('/api/settings/company', [
+            'company_name' => 'Arsha Mart',
+            'legal_name' => 'Arsha Mart Pvt Ltd',
+            'address' => '5, Market Street',
+            'city' => 'Tiruppur',
+            'state_code' => '33',
+            'pincode' => '641601',
+            'phone' => '0421 220000',
+            'gstin' => '33AAAAA0000A1Z5',
+            'logo' => UploadedFile::fake()->image('logo.png', 400, 200),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $product = Product::factory()->create(['price' => 100, 'tax_percent' => 5, 'stock' => 10]);
+        $this->postJson('/api/orders', [
+            'customer_email' => 'buyer@example.com',
+            'customer_name' => 'Buyer',
+            'items' => [['product_id' => $product->id, 'quantity' => 1]],
+        ])->assertCreated();
+
+        $html = view('receipts.thermal', ['order' => Order::with(['customer', 'items.product', 'store'])->sole()])->render();
+
+        $this->assertStringContainsString('Arsha Mart Pvt Ltd', $html);
+        $this->assertStringContainsString('5, Market Street, Tiruppur', $html);
+        $this->assertStringContainsString('Ph: 0421 220000', $html);
+        $this->assertStringContainsString('GSTIN: 33AAAAA0000A1Z5', $html);
+        $this->assertStringContainsString('<img class="logo" src="data:image/png;base64,', $html);
+        $this->assertStringNotContainsString('Gandhi Road', $html);
     }
 }

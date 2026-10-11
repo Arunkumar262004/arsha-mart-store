@@ -22,7 +22,7 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
-    // "Sign in with Google" for admins: the OAuth client ID that Google ID tokens must be issued to.
+    // "Sign in with Google": the OAuth client ID that Google ID tokens must be issued to.
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
     ],

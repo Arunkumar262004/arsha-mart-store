@@ -172,7 +172,7 @@ export default function Login() {
               <>
                 <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                   <span className="h-px flex-1 bg-slate-200" />
-                  Admin
+                  or
                   <span className="h-px flex-1 bg-slate-200" />
                 </div>
                 <GoogleSignInButton onCredential={handleGoogle} onError={(e) => setError({ message: e.message })} />

@@ -78,30 +78,47 @@ class AuthTest extends TestCase
         Http::assertSent(fn ($request) => $request['id_token'] === 'google-id-token');
     }
 
-    public function testGoogleSignInRejectsNonAdminsUnknownEmailsAndForeignTokens(): void
+    public function testGoogleSignInCreatesANewAdminForUnknownEmails(): void
+    {
+        $this->makeRole();
+        $this->fakeGoogle(['email' => 'Visitor@Gmail.com', 'name' => 'New Visitor']);
+
+        $response = $this->postJson('/api/login/google', ['credential' => 'token'])
+            ->assertOk()
+            ->assertJsonPath('user.email', 'visitor@gmail.com')
+            ->assertJsonPath('user.name', 'New Visitor');
+
+        $this->assertTrue(User::where('email', 'visitor@gmail.com')->sole()->isAdmin());
+        $this->assertContains('settings.manage', $response->json('permissions'));
+
+        // Signing in again reuses the same account.
+        $this->postJson('/api/login/google', ['credential' => 'token'])->assertOk();
+        $this->assertSame(1, User::where('email', 'visitor@gmail.com')->count());
+    }
+
+    public function testGoogleSignInKeepsExistingRolesAndRejectsBadTokens(): void
     {
         $this->user(['email' => 'owner@store.test']);
         $this->fakeGoogle();
         $this->postJson('/api/login/google', ['credential' => 'token'])
-            ->assertUnprocessable()
-            ->assertJsonPath('errors.email.0', 'Google sign-in is only for admins. Use your email and password.');
+            ->assertOk()
+            ->assertJsonPath('permissions', ['billing.create']);
+        $this->assertFalse(User::first()->fresh()->isAdmin());
 
-        $this->fakeGoogle(['email' => 'stranger@gmail.com']);
-        $this->postJson('/api/login/google', ['credential' => 'token'])->assertUnprocessable();
-
-        User::first()->update(['role_id' => $this->makeRole()->id]);
         $this->fakeGoogle(['aud' => 'someone-elses-app.apps.googleusercontent.com']);
         $this->postJson('/api/login/google', ['credential' => 'token'])
             ->assertUnprocessable()
             ->assertJsonPath('errors.email.0', 'Google sign-in failed. Please try again.');
+
+        $this->fakeGoogle(['email_verified' => 'false', 'email' => 'unverified@example.com']);
+        $this->postJson('/api/login/google', ['credential' => 'token'])->assertUnprocessable();
+        $this->assertFalse(User::where('email', 'unverified@example.com')->exists());
 
         $this->fakeGoogle();
         User::first()->update(['is_active' => false]);
         $this->postJson('/api/login/google', ['credential' => 'token'])
             ->assertUnprocessable()
             ->assertJsonPath('errors.email.0', 'This account has been deactivated. Contact your admin.');
-
-        $this->assertSame(0, User::first()->tokens()->count());
     }
 
     public function testLogoutRevokesTheToken(): void

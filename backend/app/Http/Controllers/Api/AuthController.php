@@ -6,11 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Http\Resources\StoreResource;
 use App\Http\Resources\UserResource;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -30,9 +32,10 @@ class AuthController extends Controller
     }
 
     /**
-     * "Sign in with Google" for admins: exchange a Google ID token (the
-     * credential from Google Identity Services) for a Sanctum API token.
-     * Only an existing, active admin with the same email may sign in.
+     * "Sign in with Google": exchange a Google ID token (the credential from
+     * Google Identity Services) for a Sanctum API token. Existing users sign
+     * in with their own role; a new email gets an admin account so visitors
+     * can explore the whole product.
      */
     public function google(Request $request): JsonResponse
     {
@@ -54,13 +57,32 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => 'Google sign-in failed. Please try again.']);
         }
 
-        $user = User::with('role.grants')->where('email', mb_strtolower($claims->json('email')))->first();
-
-        if (! $user?->isAdmin()) {
-            throw ValidationException::withMessages(['email' => 'Google sign-in is only for admins. Use your email and password.']);
-        }
+        $email = mb_strtolower($claims->json('email'));
+        $user = User::with('role.grants')->where('email', $email)->first()
+            ?? $this->createGoogleAdmin($email, $claims->json('name'));
 
         return $this->issueToken($user, $data['device_name'] ?? 'web');
+    }
+
+    /**
+     * A new admin for a first-time Google user. The random password is never
+     * shown; they can set one later from "Change password".
+     */
+    private function createGoogleAdmin(string $email, ?string $name): User
+    {
+        $role = Role::where('is_admin', true)->first();
+        abort_if($role === null, 503, 'No admin role is set up.');
+
+        $user = User::create([
+            'name' => $name ?: Str::before($email, '@'),
+            'email' => $email,
+            'password' => Str::password(32),
+            'role_id' => $role->id,
+            'is_active' => true,
+        ]);
+        $user->forceFill(['email_verified_at' => now()])->save();
+
+        return $user->load('role.grants');
     }
 
     private function issueToken(User $user, string $deviceName): JsonResponse
